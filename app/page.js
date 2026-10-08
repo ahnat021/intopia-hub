@@ -14,6 +14,8 @@ export default function Home() {
   const [activeTeam, setActiveTeam] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [view, setView] = useState('MARKET');
+  
+  // Modal Toggles
   const [showPostModal, setShowPostModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showAdminModal, setShowAdminModal] = useState(false);
@@ -52,11 +54,13 @@ export default function Home() {
     }
     const { data: listingsData } = await supabase.from('listings').select('*, teams ( team_number, contact_handle )').order('created_at', { ascending: false });
     if (listingsData) setListings(listingsData);
+    
     const { data: teamsData } = await supabase.from('teams').select('*').order('reputation_score', { ascending: false });
     if (teamsData) {
       setTeamsList(teamsData);
       if (teamsData.length > 0 && !formTeamId) setFormTeamId(teamsData[0].id);
     }
+    
     const { data: newsData } = await supabase.from('announcements').select('*').order('created_at', { ascending: false }).limit(3);
     if (newsData) setAnnouncements(newsData);
   }
@@ -75,8 +79,12 @@ export default function Home() {
   function handleLogin() {
     const selectedTeam = teamsList.find(t => t.id === formTeamId);
     if (selectedTeam && selectedTeam.pin_code === formPin) {
-      setActiveTeam(selectedTeam); setShowLoginModal(false); setFormPin('');
-    } else alert("Incorrect PIN.");
+      setActiveTeam(selectedTeam); 
+      setShowLoginModal(false); 
+      setFormPin('');
+    } else {
+      alert("Incorrect PIN.");
+    }
   }
 
   async function submitOrder() {
@@ -90,8 +98,9 @@ export default function Home() {
       quantity: parseInt(formQuantity) || 0, price_per_unit: parseFloat(formPrice) || 0,
       region: formRegion, target_period: period, contract_terms: { notes: formNotes }
     });
-    if (!error) { setShowPostModal(false); setFormQuantity(''); setFormPrice(''); setFormNotes(''); setFormPin(''); } 
-    else alert("Error: " + error.message);
+    if (!error) { 
+      setShowPostModal(false); setFormQuantity(''); setFormPrice(''); setFormNotes(''); setFormPin(''); 
+    } else alert("Error: " + error.message);
   }
 
   async function executeListingAction() {
@@ -107,14 +116,17 @@ export default function Home() {
       // 1. Mark filled
       await supabase.from('listings').update({ status: 'FILLED' }).eq('id', actionListing.id);
       
-      // 2. Write to Audit Ledger
+      // 2. Write to Ledger
       await supabase.from('transactions').insert({
-        listing_id: actionListing.id, buyer_id: actionListing.type === 'SELL' ? counterpartyId : actionListing.team_id,
+        listing_id: actionListing.id, 
+        buyer_id: actionListing.type === 'SELL' ? counterpartyId : actionListing.team_id,
         seller_id: actionListing.type === 'BUY' ? counterpartyId : actionListing.team_id,
-        price: actionListing.price_per_unit, quantity: actionListing.quantity, rating: parseInt(rating)
+        price: actionListing.price_per_unit, 
+        quantity: actionListing.quantity, 
+        rating: parseInt(rating)
       });
 
-      // 3. Apply Trust Math: 5★ = +2%, 4★ = 0%, 3★ = -5%, 2★ = -15%, 1★ = -25%
+      // 3. Trust Math
       const targetTeam = teamsList.find(t => t.id === counterpartyId);
       if (targetTeam) {
         let adjustment = 0;
@@ -133,8 +145,9 @@ export default function Home() {
   }
 
   function handleAdminLogin() {
-    if (adminPasswordInput === '9999') { setIsAdmin(true); setActiveTeam(null); setAdminPasswordInput(''); } 
-    else alert("Incorrect Admin Password.");
+    if (adminPasswordInput === '9999') { 
+      setIsAdmin(true); setActiveTeam(null); setAdminPasswordInput(''); setShowAdminModal(false);
+    } else alert("Incorrect Admin Password.");
   }
 
   async function saveAdminSettings() {
@@ -261,9 +274,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* LOGIN & POST MODALS REMAIN THE SAME - OMITTED DUPLICATE CODE FOR BREVITY, ASSUME IT'S EXACTLY AS PREVIOUSLY WRITTEN IN YOUR REPO */}
-      {/* FULL CODE FOR THE ACTION CONFIRMATION MODAL BELOW TO SHOW THE NEW COUNTERPARTY FIELDS */}
-
+      {/* ACTION CONFIRMATION MODAL */}
       {actionListing && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 50, padding: '20px' }}>
           <div style={{ backgroundColor: '#1C2541', padding: '30px', borderRadius: '8px', width: '100%', maxWidth: '350px', textAlign: 'center' }}>
@@ -301,7 +312,123 @@ export default function Home() {
         </div>
       )}
 
-      {/* KEEP THE REST OF THE MODALS EXACTLY THE SAME FROM PREVIOUS CODE (Login Modal, Admin Modal, Post Modal) */}
+      {/* LOGIN MODAL */}
+      {showLoginModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 60, padding: '20px' }}>
+          <div style={{ backgroundColor: '#1C2541', padding: '30px', borderRadius: '8px', width: '100%', maxWidth: '350px' }}>
+            <h2 style={{ marginTop: 0 }}>Team Login</h2>
+            <label style={{ display: 'block', color: '#8892B0', fontSize: '14px', marginBottom: '4px' }}>Select Team</label>
+            <select value={formTeamId} onChange={(e) => setFormTeamId(e.target.value)} style={{ width: '100%', padding: '10px', marginBottom: '15px', backgroundColor: '#0B132B', color: 'white', border: '1px solid #3A506B' }}>
+              {teamsList.map(t => <option key={t.id} value={t.id}>Team {t.team_number}</option>)}
+            </select>
+            <label style={{ display: 'block', color: '#EF4444', fontSize: '14px', marginBottom: '4px' }}>Team PIN</label>
+            <input type="password" value={formPin} onChange={(e) => setFormPin(e.target.value)} placeholder="0000" maxLength="4" style={{ width: '100%', padding: '10px', marginBottom: '20px', backgroundColor: '#0B132B', color: 'white', border: '1px solid #EF4444', boxSizing: 'border-box' }} />
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => setShowLoginModal(false)} style={{ flex: 1, padding: '10px', backgroundColor: 'transparent', color: 'white', border: '1px solid #5C6B89', cursor: 'pointer' }}>Cancel</button>
+              <button onClick={handleLogin} style={{ flex: 1, padding: '10px', backgroundColor: '#4361EE', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>Log In</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* POST MODAL */}
+      {showPostModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 50, padding: '20px' }}>
+          <div style={{ backgroundColor: '#1C2541', padding: '30px', borderRadius: '8px', width: '100%', maxWidth: '400px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <h2 style={{ marginTop: 0 }}>Create a Listing</h2>
+            
+            {!activeTeam && !isAdmin && (
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+                <div style={{ flex: 2 }}>
+                  <label style={{ display: 'block', color: '#8892B0', fontSize: '14px', marginBottom: '4px' }}>Your Team</label>
+                  <select value={formTeamId} onChange={(e) => setFormTeamId(e.target.value)} style={{ width: '100%', padding: '10px', backgroundColor: '#0B132B', color: 'white', border: '1px solid #3A506B' }}>
+                    {teamsList.map(t => <option key={t.id} value={t.id}>Team {t.team_number}</option>)}
+                  </select>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', color: '#EF4444', fontSize: '14px', marginBottom: '4px' }}>PIN</label>
+                  <input type="password" value={formPin} onChange={(e) => setFormPin(e.target.value)} placeholder="0000" maxLength="4" style={{ width: '100%', padding: '10px', backgroundColor: '#0B132B', color: 'white', border: '1px solid #EF4444', boxSizing: 'border-box' }} />
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', color: '#8892B0', fontSize: '14px', marginBottom: '4px' }}>Type</label>
+                <select value={formType} onChange={(e) => setFormType(e.target.value)} style={{ width: '100%', padding: '10px', backgroundColor: '#0B132B', color: 'white', border: '1px solid #3A506B' }}>
+                  <option>BUY</option><option>SELL</option>
+                </select>
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', color: '#8892B0', fontSize: '14px', marginBottom: '4px' }}>Category</label>
+                <select value={formCategory} onChange={(e) => setFormCategory(e.target.value)} style={{ width: '100%', padding: '10px', backgroundColor: '#0B132B', color: 'white', border: '1px solid #3A506B' }}>
+                  <option>Product X</option><option>Product Y</option><option>Market Intel</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', color: '#8892B0', fontSize: '14px', marginBottom: '4px' }}>Quantity</label>
+                <input type="number" value={formQuantity} onChange={(e) => setFormQuantity(e.target.value)} placeholder="50000" style={{ width: '100%', padding: '10px', backgroundColor: '#0B132B', color: 'white', border: '1px solid #3A506B', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', color: '#8892B0', fontSize: '14px', marginBottom: '4px' }}>Price ($)</label>
+                <input type="number" value={formPrice} onChange={(e) => setFormPrice(e.target.value)} placeholder="45" style={{ width: '100%', padding: '10px', backgroundColor: '#0B132B', color: 'white', border: '1px solid #3A506B', boxSizing: 'border-box' }} />
+              </div>
+            </div>
+            
+            <label style={{ display: 'block', color: '#8892B0', fontSize: '14px', marginBottom: '4px' }}>Terms / Notes (Optional)</label>
+            <input type="text" value={formNotes} onChange={(e) => setFormNotes(e.target.value)} placeholder="e.g. Will trade for Intel, Net 30" style={{ width: '100%', padding: '10px', marginBottom: '20px', backgroundColor: '#0B132B', color: 'white', border: '1px solid #3A506B', boxSizing: 'border-box' }} />
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => setShowPostModal(false)} style={{ flex: 1, padding: '10px', backgroundColor: 'transparent', color: 'white', border: '1px solid #5C6B89', cursor: 'pointer' }}>Cancel</button>
+              <button onClick={submitOrder} style={{ flex: 1, padding: '10px', backgroundColor: '#4361EE', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>Submit</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADMIN CONTROL PANEL MODAL */}
+      {showAdminModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 60, padding: '20px' }}>
+          <div style={{ backgroundColor: '#1C2541', padding: '30px', borderRadius: '8px', width: '100%', maxWidth: '350px' }}>
+            <h2 style={{ marginTop: 0, color: '#48CAE4' }}>🔒 Admin Override</h2>
+            
+            {!isAdmin ? (
+              <>
+                <p style={{ color: '#8892B0', fontSize: '14px' }}>Enter Master Password:</p>
+                <input type="password" value={adminPasswordInput} onChange={(e) => setAdminPasswordInput(e.target.value)} placeholder="Password" style={{ width: '100%', padding: '12px', marginBottom: '20px', backgroundColor: '#0B132B', color: 'white', border: '1px solid #3A506B', boxSizing: 'border-box' }} />
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button onClick={() => setShowAdminModal(false)} style={{ flex: 1, padding: '10px', backgroundColor: 'transparent', color: 'white', border: '1px solid #5C6B89', cursor: 'pointer' }}>Cancel</button>
+                  <button onClick={handleAdminLogin} style={{ flex: 1, padding: '10px', backgroundColor: '#4361EE', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>Log In</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <label style={{ display: 'block', color: '#8892B0', fontSize: '14px', marginBottom: '4px' }}>Change Current Period</label>
+                <input type="text" value={adminPeriodInput} onChange={(e) => setAdminPeriodInput(e.target.value)} style={{ width: '100%', padding: '10px', marginBottom: '15px', backgroundColor: '#0B132B', color: 'white', border: '1px solid #3A506B', boxSizing: 'border-box' }} />
+                
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', marginBottom: '20px' }}>
+                  <input type="checkbox" checked={adminTradingOpen} onChange={(e) => setAdminTradingOpen(e.target.checked)} style={{ width: '18px', height: '18px' }} />
+                  <span style={{ fontSize: '15px', fontWeight: 'bold', color: adminTradingOpen ? '#34D399' : '#EF4444' }}>
+                    {adminTradingOpen ? '🟢 TRADING IS OPEN' : '🔴 TRADING IS CLOSED'}
+                  </span>
+                </label>
+
+                <label style={{ display: 'block', color: '#F59E0B', fontSize: '14px', marginBottom: '4px', fontWeight: 'bold' }}>Broadcast Global Alert</label>
+                <input type="text" value={adminAnnouncement} onChange={(e) => setAdminAnnouncement(e.target.value)} placeholder="e.g. Tariffs increased on Product Y" style={{ width: '100%', padding: '10px', marginBottom: '24px', backgroundColor: '#0B132B', color: 'white', border: '1px solid #F59E0B', boxSizing: 'border-box' }} />
+
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button onClick={() => setShowAdminModal(false)} style={{ flex: 1, padding: '10px', backgroundColor: 'transparent', color: 'white', border: '1px solid #5C6B89', cursor: 'pointer' }}>Close Panel</button>
+                  <button onClick={saveAdminSettings} style={{ flex: 1, padding: '10px', backgroundColor: '#059669', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>Save & Broadcast</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
