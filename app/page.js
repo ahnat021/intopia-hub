@@ -20,10 +20,10 @@ export default function Home() {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showAdminModal, setShowAdminModal] = useState(false);
   
-  // Action States (Fill / Delete)
+  // Action States
   const [actionListing, setActionListing] = useState(null);
   const [actionType, setActionType] = useState('');
-  const [counterpartyId, setCounterpartyId] = useState('');
+  const [counterpartyId, setCounterpartyId] = useState(''); // Used if not logged in
   const [rating, setRating] = useState('5');
   
   // Form States
@@ -98,36 +98,36 @@ export default function Home() {
       quantity: parseInt(formQuantity) || 0, price_per_unit: parseFloat(formPrice) || 0,
       region: formRegion, target_period: period, contract_terms: { notes: formNotes }
     });
+    
     if (!error) { 
       setShowPostModal(false); setFormQuantity(''); setFormPrice(''); setFormNotes(''); setFormPin(''); 
+      fetchData(); // INSTANT REFRESH FIX
     } else alert("Error: " + error.message);
   }
 
   async function executeListingAction() {
-    const isOwner = activeTeam && activeTeam.id === actionListing.team_id;
-    if (!isAdmin && !isOwner) {
-      const selectedTeam = teamsList.find(t => t.id === actionListing.team_id);
-      if (!selectedTeam || selectedTeam.pin_code !== formPin) return alert("Unauthorized: Incorrect PIN.");
-    }
-    
     if (actionType === 'FILL') {
-      if (!counterpartyId) return alert("Please select the team you traded with.");
+      const executingTeamIdToUse = activeTeam ? activeTeam.id : counterpartyId;
       
-      // 1. Mark filled
+      if (!isAdmin && !activeTeam) {
+        if (!executingTeamIdToUse) return alert("Please select your team.");
+        const selectedTeam = teamsList.find(t => t.id === executingTeamIdToUse);
+        if (!selectedTeam || selectedTeam.pin_code !== formPin) return alert("Unauthorized: Incorrect PIN.");
+      }
+
       await supabase.from('listings').update({ status: 'FILLED' }).eq('id', actionListing.id);
       
-      // 2. Write to Ledger
       await supabase.from('transactions').insert({
         listing_id: actionListing.id, 
-        buyer_id: actionListing.type === 'SELL' ? counterpartyId : actionListing.team_id,
-        seller_id: actionListing.type === 'BUY' ? counterpartyId : actionListing.team_id,
+        buyer_id: actionListing.type === 'SELL' ? executingTeamIdToUse : actionListing.team_id,
+        seller_id: actionListing.type === 'BUY' ? executingTeamIdToUse : actionListing.team_id,
         price: actionListing.price_per_unit, 
         quantity: actionListing.quantity, 
         rating: parseInt(rating)
       });
 
-      // 3. Trust Math
-      const targetTeam = teamsList.find(t => t.id === counterpartyId);
+      // RATING LOGIC FIX: Rate the owner of the listing, not the person filling it
+      const targetTeam = teamsList.find(t => t.id === actionListing.team_id);
       if (targetTeam) {
         let adjustment = 0;
         if (rating === '5') adjustment = 2;
@@ -136,12 +136,19 @@ export default function Home() {
         if (rating === '1') adjustment = -25;
         
         const newScore = Math.min(100, Math.max(0, targetTeam.reputation_score + adjustment));
-        await supabase.from('teams').update({ reputation_score: newScore }).eq('id', counterpartyId);
+        await supabase.from('teams').update({ reputation_score: newScore }).eq('id', actionListing.team_id);
       }
     } else if (actionType === 'DELETE') {
+      const isOwner = activeTeam && activeTeam.id === actionListing.team_id;
+      if (!isAdmin && !isOwner) {
+        const selectedTeam = teamsList.find(t => t.id === actionListing.team_id);
+        if (!selectedTeam || selectedTeam.pin_code !== formPin) return alert("Unauthorized: Incorrect PIN to drop this order.");
+      }
       await supabase.from('listings').delete().eq('id', actionListing.id);
     }
+    
     setActionListing(null); setFormPin(''); setCounterpartyId(''); setRating('5');
+    fetchData(); // INSTANT REFRESH FIX
   }
 
   function handleAdminLogin() {
@@ -157,6 +164,7 @@ export default function Home() {
       setAdminAnnouncement('');
     }
     setShowAdminModal(false);
+    fetchData();
   }
 
   const activeListings = listings.filter(l => l.status === 'OPEN' && (filterType === 'ALL' || l.type === filterType) && (filterCategory === 'ALL' || l.category === filterCategory));
@@ -283,13 +291,27 @@ export default function Home() {
             
             {actionType === 'FILL' ? (
               <div style={{ textAlign: 'left', marginBottom: '20px' }}>
-                <label style={{ display: 'block', color: '#8892B0', fontSize: '14px', marginBottom: '4px' }}>Who did you trade with?</label>
-                <select value={counterpartyId} onChange={(e) => setCounterpartyId(e.target.value)} style={{ width: '100%', padding: '10px', marginBottom: '15px', backgroundColor: '#0B132B', color: 'white', border: '1px solid #3A506B' }}>
-                  <option value="" disabled>Select Counterparty...</option>
-                  {teamsList.filter(t => t.id !== actionListing.team_id).map(t => <option key={t.id} value={t.id}>Team {t.team_number}</option>)}
-                </select>
+                {/* Ask for identity ONLY if not logged in */}
+                {(!activeTeam && !isAdmin) && (
+                  <>
+                    <label style={{ display: 'block', color: '#8892B0', fontSize: '14px', marginBottom: '4px' }}>Which team are YOU?</label>
+                    <select value={counterpartyId} onChange={(e) => setCounterpartyId(e.target.value)} style={{ width: '100%', padding: '10px', marginBottom: '15px', backgroundColor: '#0B132B', color: 'white', border: '1px solid #3A506B' }}>
+                      <option value="" disabled>Select your team...</option>
+                      {teamsList.filter(t => t.id !== actionListing.team_id).map(t => <option key={t.id} value={t.id}>Team {t.team_number}</option>)}
+                    </select>
+                  </>
+                )}
+                {isAdmin && (
+                  <>
+                    <label style={{ display: 'block', color: '#8892B0', fontSize: '14px', marginBottom: '4px' }}>Admin: Which team took the order?</label>
+                    <select value={counterpartyId} onChange={(e) => setCounterpartyId(e.target.value)} style={{ width: '100%', padding: '10px', marginBottom: '15px', backgroundColor: '#0B132B', color: 'white', border: '1px solid #3A506B' }}>
+                      <option value="" disabled>Select counterparty...</option>
+                      {teamsList.filter(t => t.id !== actionListing.team_id).map(t => <option key={t.id} value={t.id}>Team {t.team_number}</option>)}
+                    </select>
+                  </>
+                )}
 
-                <label style={{ display: 'block', color: '#8892B0', fontSize: '14px', marginBottom: '4px' }}>Rate their sportsmanship</label>
+                <label style={{ display: 'block', color: '#8892B0', fontSize: '14px', marginBottom: '4px' }}>Rate Team {actionListing.teams?.team_number}'s sportsmanship:</label>
                 <select value={rating} onChange={(e) => setRating(e.target.value)} style={{ width: '100%', padding: '10px', backgroundColor: '#0B132B', color: 'white', border: '1px solid #3A506B' }}>
                   <option value="5">⭐⭐⭐⭐⭐ Flawless Execution (+2%)</option>
                   <option value="4">⭐⭐⭐⭐ Good, minor delays (0%)</option>
@@ -300,8 +322,8 @@ export default function Home() {
               </div>
             ) : null}
 
-            {!isAdmin && (!activeTeam || activeTeam.id !== actionListing.team_id) && (
-              <input type="password" value={formPin} onChange={(e) => setFormPin(e.target.value)} placeholder="Enter PIN to confirm" maxLength="4" style={{ width: '100%', padding: '12px', marginBottom: '20px', backgroundColor: '#0B132B', color: 'white', border: '1px solid #EF4444', textAlign: 'center', letterSpacing: '4px', boxSizing: 'border-box' }} />
+            {(!isAdmin && !activeTeam) && (
+              <input type="password" value={formPin} onChange={(e) => setFormPin(e.target.value)} placeholder={actionType === 'FILL' ? "Enter YOUR PIN to confirm" : "Enter PIN to drop"} maxLength="4" style={{ width: '100%', padding: '12px', marginBottom: '20px', backgroundColor: '#0B132B', color: 'white', border: '1px solid #EF4444', textAlign: 'center', letterSpacing: '4px', boxSizing: 'border-box' }} />
             )}
 
             <div style={{ display: 'flex', gap: '10px' }}>
