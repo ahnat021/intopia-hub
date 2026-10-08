@@ -9,13 +9,14 @@ export default function Home() {
   const [listings, setListings] = useState([]);
   const [teamsList, setTeamsList] = useState([]);
   
-  // Modals
+  // UI State
+  const [view, setView] = useState('MARKET'); // 'MARKET' or 'LEDGER'
   const [showPostModal, setShowPostModal] = useState(false);
-  const [actionListing, setActionListing] = useState(null); // Which listing is being cancelled/filled
-  const [actionType, setActionType] = useState(''); // 'FILL' or 'DELETE'
+  const [actionListing, setActionListing] = useState(null);
+  const [actionType, setActionType] = useState('');
   const [showAdminModal, setShowAdminModal] = useState(false);
   
-  // States for inputs
+  // Input States
   const [filterType, setFilterType] = useState('ALL');
   const [filterCategory, setFilterCategory] = useState('ALL');
   const [formTeamId, setFormTeamId] = useState('');
@@ -41,10 +42,7 @@ export default function Home() {
       setAdminTradingOpen(clockData.trading_status);
     }
 
-    const { data: listingsData } = await supabase
-      .from('listings')
-      .select(`*, teams ( team_number )`)
-      .order('created_at', { ascending: false });
+    const { data: listingsData } = await supabase.from('listings').select('*, teams ( team_number )').order('created_at', { ascending: false });
     if (listingsData) setListings(listingsData);
 
     const { data: teamsData } = await supabase.from('teams').select('*').order('reputation_score', { ascending: false });
@@ -54,14 +52,21 @@ export default function Home() {
     }
   }
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { 
+    fetchData(); 
+    
+    // Subscribe to real-time database changes
+    const channel = supabase.channel('public-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'listings' }, () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'simulation_state' }, () => fetchData())
+      .subscribe();
 
-  // 1. Post a new order
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
   async function submitOrder() {
     const selectedTeam = teamsList.find(t => t.id === formTeamId);
-    if (!isAdmin && (!selectedTeam || selectedTeam.pin_code !== formPin)) {
-      return alert("Unauthorized: Incorrect Team PIN.");
-    }
+    if (!isAdmin && (!selectedTeam || selectedTeam.pin_code !== formPin)) return alert("Unauthorized: Incorrect Team PIN.");
 
     const { error } = await supabase.from('listings').insert({
       team_id: formTeamId, type: formType, category: formCategory,
@@ -69,51 +74,47 @@ export default function Home() {
       region: formRegion, target_period: period
     });
 
-    if (!error) {
-      setShowPostModal(false); setFormQuantity(''); setFormPrice(''); setFormPin(''); fetchData();
-    } else alert("Error: " + error.message);
+    if (!error) { setShowPostModal(false); setFormQuantity(''); setFormPrice(''); setFormPin(''); } 
+    else alert("Error: " + error.message);
   }
 
-  // 2. Modify an existing order (Fill or Cancel)
   async function executeListingAction() {
     if (!isAdmin) {
       const selectedTeam = teamsList.find(t => t.id === actionListing.team_id);
-      if (!selectedTeam || selectedTeam.pin_code !== formPin) {
-        return alert("Unauthorized: Incorrect Team PIN.");
-      }
+      if (!selectedTeam || selectedTeam.pin_code !== formPin) return alert("Unauthorized: Incorrect Team PIN.");
     }
-
-    if (actionType === 'FILL') {
-      await supabase.from('listings').update({ status: 'FILLED' }).eq('id', actionListing.id);
-    } else if (actionType === 'DELETE') {
-      await supabase.from('listings').delete().eq('id', actionListing.id);
-    }
+    if (actionType === 'FILL') await supabase.from('listings').update({ status: 'FILLED' }).eq('id', actionListing.id);
+    else if (actionType === 'DELETE') await supabase.from('listings').delete().eq('id', actionListing.id);
     
-    setActionListing(null); setFormPin(''); fetchData();
+    setActionListing(null); setFormPin('');
   }
 
-  // 3. Admin Tools
   function handleAdminLogin() {
-    if (adminPasswordInput === '9999') {
-      setIsAdmin(true);
-      setAdminPasswordInput('');
-    } else alert("Incorrect Admin Password.");
+    if (adminPasswordInput === '9999') { setIsAdmin(true); setAdminPasswordInput(''); } 
+    else alert("Incorrect Admin Password.");
   }
 
   async function saveAdminSettings() {
-    await supabase.from('simulation_state').update({
-      current_period: adminPeriodInput,
-      trading_status: adminTradingOpen
-    }).eq('id', 1);
+    await supabase.from('simulation_state').update({ current_period: adminPeriodInput, trading_status: adminTradingOpen }).eq('id', 1);
     setShowAdminModal(false);
-    fetchData();
   }
 
-  const filteredListings = listings.filter(l => (filterType === 'ALL' || l.type === filterType) && (filterCategory === 'ALL' || l.category === filterCategory));
+  // Filter listings based on the active tab
+  const activeListings = listings.filter(l => l.status === 'OPEN' && (filterType === 'ALL' || l.type === filterType) && (filterCategory === 'ALL' || l.category === filterCategory));
+  const filledListings = listings.filter(l => l.status === 'FILLED');
 
   return (
     <div style={{ backgroundColor: '#0B132B', color: 'white', minHeight: '100vh', padding: '32px', fontFamily: 'system-ui, sans-serif' }}>
       
+      {/* Mobile-Friendly CSS */}
+      <style dangerouslySetInnerHTML={{__html: `
+        .responsive-grid { display: grid; grid-template-columns: 2.5fr 1fr; gap: 24px; }
+        @media (max-width: 900px) { .responsive-grid { grid-template-columns: 1fr; } }
+        .tab-btn { padding: 12px 24px; font-weight: bold; cursor: pointer; border-radius: 6px 6px 0 0; border: none; }
+        .tab-active { background-color: #111827; color: #48CAE4; border-bottom: 3px solid #48CAE4; }
+        .tab-inactive { background-color: transparent; color: #5C6B89; border-bottom: 3px solid transparent; }
+      `}} />
+
       {/* HEADER */}
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1C2541', paddingBottom: '20px', marginBottom: '24px' }}>
         <div>
@@ -127,43 +128,42 @@ export default function Home() {
               {tradingOpen ? '✓ Trading Open' : '✕ Trading Closed'}
             </span>
           </div>
-          <button onClick={() => setShowAdminModal(true)} style={{ backgroundColor: 'transparent', border: 'none', cursor: 'pointer', fontSize: '20px' }} title="Admin Panel">🔒</button>
+          <button onClick={() => setShowAdminModal(true)} style={{ backgroundColor: 'transparent', border: 'none', cursor: 'pointer', fontSize: '20px' }}>🔒</button>
         </div>
       </header>
 
-      {/* ADMIN BADGE */}
-      {isAdmin && (
-        <div style={{ backgroundColor: '#B91C1C', padding: '8px 16px', borderRadius: '6px', marginBottom: '20px', display: 'inline-block', fontWeight: 'bold', fontSize: '14px' }}>
-          ⚠️ ADMIN MODE ACTIVE (Bypassing PINs)
-        </div>
-      )}
+      {isAdmin && <div style={{ backgroundColor: '#B91C1C', padding: '8px 16px', borderRadius: '6px', marginBottom: '20px', display: 'inline-block', fontWeight: 'bold', fontSize: '14px' }}>⚠️ ADMIN MODE ACTIVE</div>}
 
-      {/* MAIN GRID */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2.5fr 1fr', gap: '24px' }}>
+      <div className="responsive-grid">
         
-        {/* LEFT COLUMN: Actions & Marketplace */}
+        {/* LEFT COLUMN: Main Board */}
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <button onClick={() => setShowPostModal(true)} style={{ padding: '12px 20px', backgroundColor: '#4361EE', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
-              + Post a Need / Offer
-            </button>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <select value={filterType} onChange={(e) => setFilterType(e.target.value)} style={{ padding: '8px', backgroundColor: '#1C2541', color: 'white', border: '1px solid #3A506B', borderRadius: '4px' }}>
-                <option value="ALL">All Types</option>
-                <option value="BUY">Buy Offers</option>
-                <option value="SELL">Sell Offers</option>
-              </select>
-              <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} style={{ padding: '8px', backgroundColor: '#1C2541', color: 'white', border: '1px solid #3A506B', borderRadius: '4px' }}>
-                <option value="ALL">All Categories</option>
-                <option value="Product X">Product X</option>
-                <option value="Product Y">Product Y</option>
-                <option value="Market Intel">Market Intel</option>
-              </select>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderBottom: '1px solid #1C2541', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => setView('MARKET')} className={`tab-btn ${view === 'MARKET' ? 'tab-active' : 'tab-inactive'}`}>📈 Live Market</button>
+              <button onClick={() => setView('LEDGER')} className={`tab-btn ${view === 'LEDGER' ? 'tab-active' : 'tab-inactive'}`}>🏛️ Audit Ledger</button>
             </div>
+            
+            {view === 'MARKET' && (
+              <div style={{ display: 'flex', gap: '8px', paddingBottom: '10px' }}>
+                <select value={filterType} onChange={(e) => setFilterType(e.target.value)} style={{ padding: '6px', backgroundColor: '#1C2541', color: 'white', border: '1px solid #3A506B', borderRadius: '4px', fontSize: '12px' }}>
+                  <option value="ALL">All Types</option><option value="BUY">Buy</option><option value="SELL">Sell</option>
+                </select>
+                <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} style={{ padding: '6px', backgroundColor: '#1C2541', color: 'white', border: '1px solid #3A506B', borderRadius: '4px', fontSize: '12px' }}>
+                  <option value="ALL">All Categories</option><option value="Product X">Product X</option><option value="Product Y">Product Y</option><option value="Market Intel">Market Intel</option>
+                </select>
+              </div>
+            )}
           </div>
 
-          <div style={{ backgroundColor: '#111827', borderRadius: '8px', border: '1px solid #1C2541', overflow: 'hidden' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
+          {view === 'MARKET' && (
+            <button onClick={() => setShowPostModal(true)} style={{ padding: '12px 20px', backgroundColor: '#4361EE', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', marginBottom: '16px', width: '100%' }}>
+              + Post a Need / Offer
+            </button>
+          )}
+
+          <div style={{ backgroundColor: '#111827', borderRadius: '8px', border: '1px solid #1C2541', overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px', minWidth: '600px' }}>
               <thead>
                 <tr style={{ backgroundColor: '#111827', color: '#8892B0', borderBottom: '1px solid #1C2541' }}>
                   <th style={{ padding: '12px 20px' }}>Team</th>
@@ -171,33 +171,32 @@ export default function Home() {
                   <th style={{ padding: '12px 20px' }}>Product</th>
                   <th style={{ padding: '12px 20px' }}>Qty & Price</th>
                   <th style={{ padding: '12px 20px' }}>Status</th>
-                  <th style={{ padding: '12px 20px', textAlign: 'right' }}>Actions</th>
+                  <th style={{ padding: '12px 20px', textAlign: 'right' }}>{view === 'MARKET' ? 'Actions' : 'Clear Date'}</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredListings.length === 0 ? (
-                  <tr><td colSpan="6" style={{ padding: '20px', textAlign: 'center', color: '#5C6B89' }}>No active listings.</td></tr>
+                {(view === 'MARKET' ? activeListings : filledListings).length === 0 ? (
+                  <tr><td colSpan="6" style={{ padding: '20px', textAlign: 'center', color: '#5C6B89' }}>No {view === 'MARKET' ? 'active listings' : 'cleared transactions'} found.</td></tr>
                 ) : (
-                  filteredListings.map((l) => (
-                    <tr key={l.id} style={{ borderBottom: '1px solid #1C2541', opacity: l.status === 'FILLED' ? 0.5 : 1 }}>
+                  (view === 'MARKET' ? activeListings : filledListings).map((l) => (
+                    <tr key={l.id} style={{ borderBottom: '1px solid #1C2541' }}>
                       <td style={{ padding: '12px 20px', fontWeight: 'bold' }}>Team {l.teams?.team_number || '?'}</td>
                       <td style={{ padding: '12px 20px', color: l.type === 'BUY' ? '#EF4444' : '#10B981', fontWeight: 'bold' }}>{l.type}</td>
                       <td style={{ padding: '12px 20px' }}>{l.category} <br/><span style={{fontSize: '11px', color: '#8892B0'}}>{l.region}</span></td>
                       <td style={{ padding: '12px 20px' }}>{l.quantity?.toLocaleString()} @ ${l.price_per_unit}</td>
                       <td style={{ padding: '12px 20px' }}>
-                        <span style={{ backgroundColor: l.status === 'OPEN' ? '#064E3B' : '#374151', color: l.status === 'OPEN' ? '#34D399' : '#9CA3AF', padding: '2px 8px', borderRadius: '4px', fontSize: '12px' }}>
+                        <span style={{ backgroundColor: l.status === 'OPEN' ? '#064E3B' : '#1E3A8A', color: l.status === 'OPEN' ? '#34D399' : '#60A5FA', padding: '2px 8px', borderRadius: '4px', fontSize: '12px' }}>
                           {l.status}
                         </span>
                       </td>
                       <td style={{ padding: '12px 20px', textAlign: 'right' }}>
-                        {l.status === 'OPEN' && (
+                        {view === 'MARKET' ? (
                           <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
                             <button onClick={() => { setActionListing(l); setActionType('FILL'); }} style={{ padding: '6px 10px', backgroundColor: '#059669', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>✓ Fill</button>
                             <button onClick={() => { setActionListing(l); setActionType('DELETE'); }} style={{ padding: '6px 10px', backgroundColor: '#DC2626', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>✕ Drop</button>
                           </div>
-                        )}
-                        {l.status === 'FILLED' && isAdmin && (
-                           <button onClick={() => { setActionListing(l); setActionType('DELETE'); }} style={{ padding: '4px 8px', backgroundColor: 'transparent', color: '#DC2626', border: '1px solid #DC2626', borderRadius: '4px', cursor: 'pointer', fontSize: '11px' }}>Delete Record</button>
+                        ) : (
+                          <span style={{ fontSize: '12px', color: '#8892B0' }}>{new Date(l.created_at).toLocaleTimeString()}</span>
                         )}
                       </td>
                     </tr>
@@ -219,13 +218,20 @@ export default function Home() {
               </div>
             ))}
           </div>
+          
+          <div style={{ backgroundColor: '#111827', borderRadius: '8px', border: '1px solid #1C2541', padding: '20px' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', color: '#48CAE4' }}>📊 Market Pulse</h3>
+            <p style={{ color: '#8892B0', fontSize: '13px', margin: '0 0 10px 0' }}>Open Needs: <strong style={{ color: 'white' }}>{activeListings.filter(l => l.type === 'BUY').length}</strong></p>
+            <p style={{ color: '#8892B0', fontSize: '13px', margin: '0 0 10px 0' }}>Open Offers: <strong style={{ color: 'white' }}>{activeListings.filter(l => l.type === 'SELL').length}</strong></p>
+            <p style={{ color: '#8892B0', fontSize: '13px', margin: 0 }}>Cleared Deals: <strong style={{ color: '#60A5FA' }}>{filledListings.length}</strong></p>
+          </div>
         </div>
       </div>
 
       {/* POST MODAL */}
       {showPostModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <div style={{ backgroundColor: '#1C2541', padding: '30px', borderRadius: '8px', width: '400px' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 50, padding: '20px' }}>
+          <div style={{ backgroundColor: '#1C2541', padding: '30px', borderRadius: '8px', width: '100%', maxWidth: '400px' }}>
             <h2 style={{ marginTop: 0 }}>Create a Listing</h2>
             
             <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
@@ -277,17 +283,17 @@ export default function Home() {
         </div>
       )}
 
-      {/* ACTION CONFIRMATION MODAL (FILL / DELETE) */}
+      {/* ACTION CONFIRMATION MODAL */}
       {actionListing && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <div style={{ backgroundColor: '#1C2541', padding: '30px', borderRadius: '8px', width: '350px', textAlign: 'center' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 50, padding: '20px' }}>
+          <div style={{ backgroundColor: '#1C2541', padding: '30px', borderRadius: '8px', width: '100%', maxWidth: '350px', textAlign: 'center' }}>
             <h3 style={{ marginTop: 0 }}>{actionType === 'FILL' ? 'Mark Order as Filled?' : 'Drop this Order?'}</h3>
             <p style={{ color: '#8892B0', fontSize: '14px', marginBottom: '20px' }}>
               Team {actionListing.teams?.team_number} • {actionListing.type} {actionListing.quantity} {actionListing.category}
             </p>
             
             {!isAdmin && (
-              <input type="password" value={formPin} onChange={(e) => setFormPin(e.target.value)} placeholder="Enter Team PIN to confirm" maxLength="4" style={{ width: '100%', padding: '12px', marginBottom: '20px', backgroundColor: '#0B132B', color: 'white', border: '1px solid #EF4444', textAlign: 'center', letterSpacing: '4px', boxSizing: 'border-box' }} />
+              <input type="password" value={formPin} onChange={(e) => setFormPin(e.target.value)} placeholder="Enter PIN" maxLength="4" style={{ width: '100%', padding: '12px', marginBottom: '20px', backgroundColor: '#0B132B', color: 'white', border: '1px solid #EF4444', textAlign: 'center', letterSpacing: '4px', boxSizing: 'border-box' }} />
             )}
 
             <div style={{ display: 'flex', gap: '10px' }}>
@@ -300,8 +306,8 @@ export default function Home() {
 
       {/* ADMIN CONTROL PANEL MODAL */}
       {showAdminModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 50 }}>
-          <div style={{ backgroundColor: '#1C2541', padding: '30px', borderRadius: '8px', width: '350px' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 60, padding: '20px' }}>
+          <div style={{ backgroundColor: '#1C2541', padding: '30px', borderRadius: '8px', width: '100%', maxWidth: '350px' }}>
             <h2 style={{ marginTop: 0, color: '#48CAE4' }}>🔒 Admin Override</h2>
             
             {!isAdmin ? (
