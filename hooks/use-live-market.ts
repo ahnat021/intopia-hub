@@ -5,7 +5,7 @@ import {
   INITIAL_ACTIVITY,
   INITIAL_LISTINGS,
   LIVE_TEMPLATES,
-  REGIONS,
+  REGION_WEIGHTS,
   SIM_START_SECONDS,
   TEAMS,
   teamLabel,
@@ -83,7 +83,7 @@ export function useLiveMarket() {
           teamId: team.id,
           product: template.product,
           quantity: template.quantity,
-          region: pick(REGIONS),
+          region: pick(REGION_WEIGHTS),
           neededBy: pick(["P5", "P6"]),
           notes: template.notes,
         })

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, type FormEvent } from "react"
-import { Plus } from "lucide-react"
+import { ArrowDownLeft, ArrowUpRight, FlaskConical, Handshake, Plus, type LucideIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -17,16 +17,23 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { LISTING_TYPE_LABEL, REGIONS, TEAMS, type ListingType, type Region } from "@/lib/mock-data"
+import { cn } from "@/lib/utils"
+import { REGIONS, teamLabel, type ListingType, type Region, type Team } from "@/lib/mock-data"
 import type { NewListingInput } from "@/hooks/use-live-market"
 
-const TYPES = Object.keys(LISTING_TYPE_LABEL) as ListingType[]
+const TYPE_OPTIONS: { value: ListingType; label: string; icon: LucideIcon; tone: string }[] = [
+  { value: "BUY", label: "Buy", icon: ArrowDownLeft, tone: "text-emerald-400" },
+  { value: "SELL", label: "Sell", icon: ArrowUpRight, tone: "text-rose-400" },
+  { value: "PARTNERSHIP", label: "Joint Venture", icon: Handshake, tone: "text-sky-400" },
+  { value: "RND", label: "R&D License", icon: FlaskConical, tone: "text-violet-400" },
+]
+const PRODUCTS = ["Product X", "Product Y", "Raw Materials", "R&D License", "Logistics Capacity"]
 const PERIODS = ["P4", "P5", "P6", "P7", "P8"]
 
-export function PostListingDialog({ onPost }: { onPost: (input: NewListingInput) => void }) {
+export function PostListingDialog({ team, onPost }: { team: Team; onPost: (input: NewListingInput) => void }) {
   const [open, setOpen] = useState(false)
   const [type, setType] = useState<ListingType>("SELL")
-  const [teamId, setTeamId] = useState(TEAMS[0].id)
+  const [product, setProduct] = useState(PRODUCTS[0])
   const [region, setRegion] = useState<Region>("Global")
   const [neededBy, setNeededBy] = useState("P5")
   const [error, setError] = useState<string | null>(null)
@@ -34,24 +41,37 @@ export function PostListingDialog({ onPost }: { onPost: (input: NewListingInput)
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const form = new FormData(e.currentTarget)
-    const product = String(form.get("product") ?? "").trim().slice(0, 60)
-    const quantity = String(form.get("quantity") ?? "").trim().slice(0, 30)
+    const qty = Number(String(form.get("quantity") ?? "").replace(/,/g, ""))
     const notes = String(form.get("notes") ?? "").trim().slice(0, 140)
 
-    if (!product || !quantity) {
-      setError("Product and quantity are required.")
+    if (!Number.isInteger(qty) || qty <= 0 || qty > 100000) {
+      setError("Quantity must be a whole number between 1 and 100,000.")
       return
     }
 
-    onPost({ type, teamId, product, quantity, region, neededBy, notes: notes || "—" })
+    onPost({
+      type,
+      teamId: team.id,
+      product,
+      quantity: `${qty.toLocaleString("en-US")} units`,
+      region,
+      neededBy,
+      notes: notes || "—",
+    })
     setError(null)
     setOpen(false)
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o)
+        if (!o) setError(null)
+      }}
+    >
       <DialogTrigger asChild>
-        <Button className="shadow-lg shadow-primary/25">
+        <Button size="sm" className="shadow-lg shadow-primary/25">
           <Plus className="size-4" aria-hidden />
           Post a Listing
         </Button>
@@ -59,54 +79,68 @@ export function PostListingDialog({ onPost }: { onPost: (input: NewListingInput)
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Post a new listing</DialogTitle>
-          <DialogDescription>Your listing goes live on the marketplace immediately for all teams.</DialogDescription>
+          <DialogDescription>
+            Posting as <span className="font-mono text-foreground">{teamLabel(team.id)}</span> · {team.name}. Goes live
+            for all teams immediately.
+          </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="grid gap-4" noValidate>
+        <form onSubmit={handleSubmit} className="grid gap-5" noValidate>
+          <fieldset className="grid gap-2">
+            <legend className="mb-2 text-sm font-medium">Listing type</legend>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {TYPE_OPTIONS.map(({ value, label, icon: Icon, tone }) => (
+                <label
+                  key={value}
+                  className={cn(
+                    "flex cursor-pointer flex-col items-center gap-1.5 rounded-lg border p-3 text-xs font-medium transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring",
+                    type === value ? "border-primary bg-primary/10" : "border-border hover:bg-secondary/60",
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name="type"
+                    value={value}
+                    checked={type === value}
+                    onChange={() => setType(value)}
+                    className="sr-only"
+                  />
+                  <Icon className={cn("size-5", tone)} aria-hidden />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
-              <Label htmlFor="listing-type">Listing type</Label>
-              <Select value={type} onValueChange={(v) => setType(v as ListingType)}>
-                <SelectTrigger id="listing-type" className="w-full">
+              <Label htmlFor="listing-product">Product</Label>
+              <Select value={product} onValueChange={setProduct}>
+                <SelectTrigger id="listing-product" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {TYPES.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {LISTING_TYPE_LABEL[t]}
+                  {PRODUCTS.map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {p}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="listing-team">Posting as</Label>
-              <Select value={teamId} onValueChange={setTeamId}>
-                <SelectTrigger id="listing-team" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="max-h-64">
-                  {TEAMS.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      T{String(t.number).padStart(2, "0")} · {t.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="listing-quantity">Quantity (units)</Label>
+              <Input
+                id="listing-quantity"
+                name="quantity"
+                inputMode="numeric"
+                placeholder="e.g. 5000"
+                maxLength={7}
+                required
+              />
             </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
-              <Label htmlFor="listing-product">Product / offering</Label>
-              <Input id="listing-product" name="product" placeholder="e.g. Product X Chips" maxLength={60} required />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="listing-quantity">Quantity / terms</Label>
-              <Input id="listing-quantity" name="quantity" placeholder="e.g. 5,000 units" maxLength={30} required />
-            </div>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="grid gap-2">
-              <Label htmlFor="listing-region">Region</Label>
+              <Label htmlFor="listing-region">Target region</Label>
               <Select value={region} onValueChange={(v) => setRegion(v as Region)}>
                 <SelectTrigger id="listing-region" className="w-full">
                   <SelectValue />
@@ -138,7 +172,7 @@ export function PostListingDialog({ onPost }: { onPost: (input: NewListingInput)
           </div>
           <div className="grid gap-2">
             <Label htmlFor="listing-notes">Notes</Label>
-            <Textarea id="listing-notes" name="notes" placeholder="Terms, pricing, delivery details…" maxLength={140} rows={3} />
+            <Textarea id="listing-notes" name="notes" placeholder="Terms, pricing, delivery details…" maxLength={140} rows={2} />
           </div>
           {error && (
             <p role="alert" className="text-sm text-destructive">

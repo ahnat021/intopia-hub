@@ -1,12 +1,14 @@
 export type ListingType = "BUY" | "SELL" | "PARTNERSHIP" | "RND"
 export type ListingStatus = "OPEN" | "NEGOTIATING" | "URGENT" | "CLOSED"
-export type Region = "Americas" | "Europe" | "Asia-Pacific" | "Global"
+export type Region = "China" | "USA" | "Europe" | "Brazil" | "Global"
 
 export interface Team {
   id: string
   number: number
   name: string
   region: Region
+  whatsapp: string
+  email: string
 }
 
 export interface Listing {
@@ -74,7 +76,12 @@ export const SIM_START_SECONDS = 18 * 3600 + 45 * 60 + 23
 export const SIM_DEADLINE_SECONDS = 21 * 3600
 export const CURRENT_PERIOD = "P4"
 
-export const REGIONS: Region[] = ["Americas", "Europe", "Asia-Pacific", "Global"]
+export const REGIONS: Region[] = ["China", "USA", "Europe", "Brazil", "Global"]
+
+/** Weighted pool used when generating listings, so China is the busiest market. */
+export const REGION_WEIGHTS: Region[] = ["China", "China", "USA", "China", "Europe", "Brazil", "China", "USA", "Global"]
+
+const DIAL_CODE: Record<Region, string> = { China: "+86", USA: "+1", Europe: "+49", Brazil: "+55", Global: "+44" }
 
 export const LISTING_TYPE_LABEL: Record<ListingType, string> = {
   BUY: "Buying",
@@ -91,18 +98,64 @@ const TEAM_NAMES = [
   "Kestrel Micro", "Beacon Industries", "Tidewater Co.", "Ember Circuits", "Granite Logistics",
 ]
 
-export const TEAMS: Team[] = TEAM_NAMES.map((name, i) => ({
-  id: `t${String(i + 1).padStart(2, "0")}`,
-  number: i + 1,
-  name,
-  region: REGIONS[i % 3],
-}))
+const slugify = (name: string) =>
+  name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+
+function mockPhone(region: Region, n: number) {
+  const a = String(300 + ((n * 47) % 600))
+  const b = String(1000 + ((n * 1373) % 9000))
+  return `${DIAL_CODE[region]} ${a} ${b}`
+}
+
+export const TEAMS: Team[] = TEAM_NAMES.map((name, i) => {
+  const region = REGIONS[i % 4]
+  return {
+    id: `t${String(i + 1).padStart(2, "0")}`,
+    number: i + 1,
+    name,
+    region,
+    whatsapp: mockPhone(region, i + 1),
+    email: `trade@${slugify(name)}.team`,
+  }
+})
 
 export const TEAM_BY_ID: Record<string, Team> = Object.fromEntries(TEAMS.map((t) => [t.id, t]))
 
 export function teamLabel(teamId: string) {
   const team = TEAM_BY_ID[teamId]
   return team ? `T${String(team.number).padStart(2, "0")}` : teamId
+}
+
+/**
+ * Adds a team to the in-memory roster (or updates its contact details if the name already exists).
+ * Matching is case-insensitive so existing simulation teams can sign in by name.
+ */
+export function registerTeam(name: string, whatsapp: string, email: string): Team {
+  const existing = TEAMS.find((t) => t.name.toLowerCase() === name.trim().toLowerCase())
+  if (existing) {
+    existing.whatsapp = whatsapp
+    existing.email = email
+    return existing
+  }
+  const number = TEAMS.length + 1
+  const team: Team = {
+    id: `t${String(number).padStart(2, "0")}`,
+    number,
+    name: name.trim(),
+    region: "Global",
+    whatsapp,
+    email,
+  }
+  TEAMS.push(team)
+  TEAM_BY_ID[team.id] = team
+  return team
+}
+
+export function whatsappHref(phone: string) {
+  return `https://wa.me/${phone.replace(/\D/g, "")}`
 }
 
 interface ListingTemplate {
@@ -115,16 +168,17 @@ const TEMPLATES: Record<ListingType, ListingTemplate[]> = {
   BUY: [
     { product: "Product X Chips", quantity: "8,000 units", notes: "Premium paid for on-time P5 delivery" },
     { product: "Product Y Boards", quantity: "3,500 units", notes: "Need certified supplier, net-30 terms" },
-    { product: "Raw Silicon", quantity: "12 tons", notes: "Recurring order over next 3 periods" },
     { product: "Product X Grade-A", quantity: "5,000 units", notes: "Shortfall after plant retooling" },
-    { product: "Logistics Capacity", quantity: "40 containers", notes: "Europe → APAC lane preferred" },
+    { product: "Raw Silicon", quantity: "12 tons", notes: "Recurring order over next 3 periods" },
+    { product: "Product X Chips", quantity: "3,000 units", notes: "Rush order, can collect in China" },
     { product: "Product Y Modules", quantity: "2,200 units", notes: "Open to split shipments" },
+    { product: "Product X Grade-A", quantity: "9,500 units", notes: "Multi-period supply contract" },
   ],
   SELL: [
-    { product: "Product X Chips", quantity: "10,000 units", notes: "Surplus inventory, volume discount" },
+    { product: "Product X Grade-B", quantity: "6,000 units", notes: "Below market, firm price" },
     { product: "Product Y Standard", quantity: "4,800 units", notes: "Ready to ship this period" },
     { product: "Plant Capacity", quantity: "25% line time", notes: "Contract manufacturing available" },
-    { product: "Product X Grade-B", quantity: "6,000 units", notes: "Below market, firm price" },
+    { product: "Product Y Surplus", quantity: "2,500 units", notes: "Volume discount over 2,000 units" },
     { product: "Warehouse Space", quantity: "18,000 sq ft", notes: "Short-term lease through P6" },
   ],
   PARTNERSHIP: [
@@ -159,7 +213,7 @@ function buildListings(type: ListingType, active: number, closed: number, offset
       teamId: team.id,
       product: template.product,
       quantity: template.quantity,
-      region: REGIONS[(seed * 3 + 1) % REGIONS.length],
+      region: REGION_WEIGHTS[(seed * 5 + 1) % REGION_WEIGHTS.length],
       neededBy: NEEDED_BY[seed % NEEDED_BY.length],
       notes: template.notes,
       createdAt: SIM_START_SECONDS - (seed * 137 + 60),
@@ -168,7 +222,7 @@ function buildListings(type: ListingType, active: number, closed: number, offset
 }
 
 export const INITIAL_LISTINGS: Listing[] = [
-  ...buildListings("BUY", 10, 2, 0),
+  ...buildListings("BUY", 14, 2, 0),
   ...buildListings("SELL", 8, 2, 12),
   ...buildListings("PARTNERSHIP", 18, 0, 22),
   ...buildListings("RND", 6, 0, 40),

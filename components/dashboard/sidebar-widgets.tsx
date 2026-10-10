@@ -1,6 +1,10 @@
-import { memo } from "react"
+"use client"
+
+import { memo, useMemo } from "react"
 import {
+  Activity,
   Award,
+  MapPin,
   CircleDollarSign,
   FlaskConical,
   Handshake,
@@ -23,6 +27,7 @@ import {
   type ActivityKind,
   type ActivityLog,
   type AnnouncementTag,
+  type Listing,
 } from "@/lib/mock-data"
 
 function Panel({
@@ -52,6 +57,90 @@ function Panel({
     </section>
   )
 }
+
+const PULSE_PRODUCTS = ["Product X", "Product Y"] as const
+
+type DemandLabel = "High Demand" | "Balanced" | "Oversupplied"
+
+const DEMAND_STYLE: Record<DemandLabel, string> = {
+  "High Demand": "bg-amber-500/15 text-amber-400 ring-amber-500/30",
+  Balanced: "bg-slate-400/15 text-slate-300 ring-slate-400/30",
+  Oversupplied: "bg-sky-500/15 text-sky-400 ring-sky-500/30",
+}
+
+function demandLabel(buyers: number, sellers: number): DemandLabel {
+  if (buyers >= Math.max(1, sellers) * 2) return "High Demand"
+  if (sellers >= Math.max(1, buyers) * 2) return "Oversupplied"
+  return "Balanced"
+}
+
+export const MarketPulse = memo(function MarketPulse({ listings }: { listings: Listing[] }) {
+  const { products, topRegion } = useMemo(() => {
+    const stats = PULSE_PRODUCTS.map((name) => ({ name, buyers: new Set<string>(), sellers: new Set<string>() }))
+    const regions = new Map<string, number>()
+    for (const l of listings) {
+      if (l.status === "CLOSED") continue
+      if (l.region !== "Global") regions.set(l.region, (regions.get(l.region) ?? 0) + 1)
+      const stat = stats.find((s) => l.product.startsWith(s.name))
+      if (!stat) continue
+      if (l.type === "BUY") stat.buyers.add(l.teamId)
+      else if (l.type === "SELL") stat.sellers.add(l.teamId)
+    }
+    let top: [string, number] = ["—", 0]
+    for (const entry of regions) if (entry[1] > top[1]) top = entry
+    return {
+      products: stats.map((s) => ({ name: s.name, buyers: s.buyers.size, sellers: s.sellers.size })),
+      topRegion: top,
+    }
+  }, [listings])
+
+  return (
+    <Panel title="Market Pulse" icon={Activity}>
+      <ul className="flex flex-col gap-4 px-4 py-4">
+        {products.map((p) => {
+          const label = demandLabel(p.buyers, p.sellers)
+          const total = Math.max(1, p.buyers + p.sellers)
+          return (
+            <li key={p.name} className="flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-medium">{p.name}</span>
+                <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ring-1 ring-inset", DEMAND_STYLE[label])}>
+                  {label}
+                </span>
+              </div>
+              <div
+                className="flex h-2 gap-0.5 overflow-hidden rounded-full bg-secondary"
+                role="img"
+                aria-label={`${p.buyers} active buyers versus ${p.sellers} active sellers`}
+              >
+                <div className="h-full bg-emerald-400 transition-[width] duration-500" style={{ width: `${(p.buyers / total) * 100}%` }} />
+                <div className="h-full bg-rose-400 transition-[width] duration-500" style={{ width: `${(p.sellers / total) * 100}%` }} />
+              </div>
+              <div className="flex justify-between font-mono text-[11px] tabular-nums text-muted-foreground">
+                <span>
+                  <span className="text-emerald-400">{p.buyers}</span> active buyers
+                </span>
+                <span>
+                  <span className="text-rose-400">{p.sellers}</span> active sellers
+                </span>
+              </div>
+            </li>
+          )
+        })}
+      </ul>
+      <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-3">
+        <span className="flex items-center gap-2 text-xs text-muted-foreground">
+          <MapPin className="size-3.5 text-primary" aria-hidden />
+          Most Active Region
+        </span>
+        <span className="text-sm">
+          <span className="font-semibold">{topRegion[0]}</span>{" "}
+          <span className="font-mono text-xs tabular-nums text-muted-foreground">· {topRegion[1]} active listings</span>
+        </span>
+      </div>
+    </Panel>
+  )
+})
 
 const ACTIVITY_META: Record<ActivityKind, { icon: LucideIcon; tone: string }> = {
   listing: { icon: Store, tone: "bg-sky-500/15 text-sky-400" },
