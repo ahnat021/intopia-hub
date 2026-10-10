@@ -1,9 +1,9 @@
 "use client"
 
-import { Clock } from "lucide-react"
+import { Clock, Lock, Unlock } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { formatHMS, useCountdown } from "@/hooks/use-countdown"
-import { CURRENT_PERIOD, SIM_DEADLINE_SECONDS, SIM_START_SECONDS } from "@/lib/mock-data"
+import { CURRENT_PERIOD, LOCKOUT_SECONDS, SIM_DEADLINE_SECONDS, SIM_START_SECONDS } from "@/lib/mock-data"
 
 const TOTAL_SECONDS = SIM_DEADLINE_SECONDS - SIM_START_SECONDS
 
@@ -25,10 +25,10 @@ function timelinePercent(simNow: number) {
   return 100
 }
 
-export function PeriodStatus() {
+export function PeriodStatus({ lockedOut, onToggleLockout }: { lockedOut: boolean; onToggleLockout: () => void }) {
   const remaining = useCountdown(TOTAL_SECONDS)
   const [h, m, s] = formatHMS(remaining)
-  const simNow = SIM_DEADLINE_SECONDS - remaining
+  const simNow = lockedOut ? LOCKOUT_SECONDS : SIM_DEADLINE_SECONDS - remaining
   const progress = timelinePercent(simNow)
   const isClosed = remaining === 0
   const isCritical = remaining > 0 && remaining <= 15 * 60
@@ -49,16 +49,18 @@ export function PeriodStatus() {
               "inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset",
               isClosed
                 ? "bg-rose-500/15 text-rose-400 ring-rose-500/30"
-                : "bg-emerald-500/15 text-emerald-400 ring-emerald-500/30",
+                : lockedOut
+                  ? "bg-amber-500/15 text-amber-400 ring-amber-500/30"
+                  : "bg-emerald-500/15 text-emerald-400 ring-emerald-500/30",
             )}
           >
             <span className="relative flex size-2">
-              {!isClosed && (
+              {!isClosed && !lockedOut && (
                 <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
               )}
-              <span className={cn("relative inline-flex size-2 rounded-full", isClosed ? "bg-rose-400" : "bg-emerald-400")} />
+              <span className={cn("relative inline-flex size-2 rounded-full", isClosed ? "bg-rose-400" : lockedOut ? "bg-amber-400" : "bg-emerald-400")} />
             </span>
-            {isClosed ? "Trading Closed" : "Trading Open"}
+            {isClosed ? "Trading Closed" : lockedOut ? "Contracts Locked" : "Trading Open"}
           </span>
         </div>
 
@@ -103,6 +105,20 @@ export function PeriodStatus() {
             ))}
           </ol>
         </div>
+        <button
+          type="button"
+          onClick={onToggleLockout}
+          aria-pressed={lockedOut}
+          className={cn(
+            "mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors",
+            lockedOut
+              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
+              : "border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20",
+          )}
+        >
+          {lockedOut ? <Unlock className="size-3.5" aria-hidden /> : <Lock className="size-3.5" aria-hidden />}
+          {lockedOut ? "Reopen Trading (demo)" : "Simulate 8:30 PM Lockout"}
+        </button>
       </section>
 
       <section

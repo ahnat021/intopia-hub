@@ -1,8 +1,7 @@
 "use client"
 
-import { memo, useCallback, useEffect, useMemo, useState } from "react"
-import { useSearchParams } from "next/navigation"
-import { ChevronLeft, ChevronRight, MessageSquare, Pause, Play, Search, SearchX, X } from "lucide-react"
+import { memo, useMemo, useState } from "react"
+import { ChevronLeft, ChevronRight, FileSignature, MessagesSquare, Pause, Play, Search, SearchX } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -10,165 +9,79 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import { useDebouncedValue } from "@/hooks/use-debounced-value"
-import { REGIONS, TEAM_BY_ID, teamLabel, type Listing, type ListingStatus, type ListingType } from "@/lib/mock-data"
-import { StatusBadge, TypeLabel } from "./listing-badges"
+import { GRADES, OPERATING_AREAS, PRODUCT_INFO, formatUnits } from "@/lib/intopia-rules"
+import { teamLabel, type Listing, type ListingType } from "@/lib/mock-data"
+import { DeliveryLabel, StatusBadge, TypeLabel } from "./listing-badges"
 
-const PAGE_SIZE = 6
+const PAGE_SIZE = 8
 
-const TABS: { value: string; label: string; type?: ListingType }[] = [
-  { value: "all", label: "All Listings" },
-  { value: "buying", label: "Buying", type: "BUY" },
-  { value: "selling", label: "Selling", type: "SELL" },
-  { value: "partnerships", label: "Partnerships", type: "PARTNERSHIP" },
-  { value: "rnd", label: "R&D / Licensing", type: "RND" },
+type Tab = "ALL" | ListingType
+const TABS: { value: Tab; label: string }[] = [
+  { value: "ALL", label: "All Listings" },
+  { value: "BUY", label: "Buying" },
+  { value: "SELL", label: "Selling" },
+  { value: "PARTNERSHIP", label: "Partnerships" },
+  { value: "RND", label: "R&D / Licensing" },
 ]
 
-const STATUS_PRIORITY: Record<ListingStatus, number> = { URGENT: 0, OPEN: 1, NEGOTIATING: 2, CLOSED: 3 }
-
-type SortKey = "newest" | "priority" | "team"
-
-const SORT_LABEL: Record<SortKey, string> = { newest: "Newest first", priority: "Urgent first", team: "By team" }
-
-interface LiveMarketplaceProps {
+interface Props {
   listings: Listing[]
+  viewerId: string
+  /** Listing ids that have a contract involving the viewer. */
+  contractListingIds: Set<string>
   isLive: boolean
   onToggleLive: () => void
-  onContact: (listing: Listing) => void
+  onOpen: (listing: Listing) => void
 }
 
-function useUrlState() {
-  const searchParams = useSearchParams()
-
-  const setParams = useCallback(
-    (updates: Record<string, string | null>) => {
-      const params = new URLSearchParams(window.location.search)
-      for (const [key, value] of Object.entries(updates)) {
-        if (value === null || value === "") params.delete(key)
-        else params.set(key, value)
-      }
-      const qs = params.toString()
-      window.history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname)
-    },
-    [],
-  )
-
-  const tab = TABS.some((t) => t.value === searchParams.get("tab")) ? (searchParams.get("tab") as string) : "all"
-  const region = searchParams.get("region") ?? "all"
-  const sort = (["newest", "priority", "team"].includes(searchParams.get("sort") ?? "") ? searchParams.get("sort") : "newest") as SortKey
-  const query = searchParams.get("q") ?? ""
-  const page = Math.max(1, Number.parseInt(searchParams.get("page") ?? "1", 10) || 1)
-
-  return { tab, region, sort, query, page, setParams }
-}
-
-export function LiveMarketplace({ listings, isLive, onToggleLive, onContact }: LiveMarketplaceProps) {
-  const { tab, region, sort, query, page, setParams } = useUrlState()
-  const [searchInput, setSearchInput] = useState(query)
-  const debouncedSearch = useDebouncedValue(searchInput, 300)
-
-  useEffect(() => {
-    const committed = new URLSearchParams(window.location.search).get("q") ?? ""
-    const next = debouncedSearch.trim()
-    if (next !== committed) setParams({ q: next || null, page: null })
-  }, [debouncedSearch, setParams])
-
-  const tabCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: listings.length }
-    for (const t of TABS) if (t.type) counts[t.value] = 0
-    for (const l of listings) {
-      const t = TABS.find((x) => x.type === l.type)
-      if (t) counts[t.value]++
-    }
-    return counts
-  }, [listings])
+export const LiveMarketplace = memo(function LiveMarketplace({ listings, viewerId, contractListingIds, isLive, onToggleLive, onOpen }: Props) {
+  const [tab, setTab] = useState<Tab>("ALL")
+  const [query, setQuery] = useState("")
+  const [region, setRegion] = useState("ALL")
+  const [grade, setGrade] = useState("ALL")
+  const [page, setPage] = useState(1)
+  const debounced = useDebouncedValue(query, 250)
 
   const filtered = useMemo(() => {
-    const activeType = TABS.find((t) => t.value === tab)?.type
-    const needle = query.toLowerCase()
-    const result = listings.filter((l) => {
-      if (activeType && l.type !== activeType) return false
-      if (region !== "all" && l.region !== region) return false
-      if (!needle) return true
-      const team = TEAM_BY_ID[l.teamId]
-      return (
-        l.product.toLowerCase().includes(needle) ||
-        l.notes.toLowerCase().includes(needle) ||
-        l.region.toLowerCase().includes(needle) ||
-        teamLabel(l.teamId).toLowerCase().includes(needle) ||
-        (team?.name.toLowerCase().includes(needle) ?? false)
-      )
+    const q = debounced.trim().toLowerCase()
+    return listings.filter((l) => {
+      if (tab !== "ALL" && l.type !== tab) return false
+      if (region !== "ALL" && l.region !== region) return false
+      if (grade !== "ALL" && String(l.grade) !== grade) return false
+      if (!q) return true
+      return [l.title, l.notes, teamLabel(l.teamId), l.region, `${l.product}${l.grade}`, PRODUCT_INFO[l.product].kind]
+        .join(" ")
+        .toLowerCase()
+        .includes(q)
     })
-    if (sort === "priority") {
-      result.sort((a, b) => STATUS_PRIORITY[a.status] - STATUS_PRIORITY[b.status] || b.createdAt - a.createdAt)
-    } else if (sort === "team") {
-      result.sort((a, b) => a.teamId.localeCompare(b.teamId) || b.createdAt - a.createdAt)
-    } else {
-      result.sort((a, b) => b.createdAt - a.createdAt)
-    }
-    return result
-  }, [listings, tab, region, query, sort])
+  }, [listings, tab, region, grade, debounced])
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const currentPage = Math.min(page, pageCount)
-  const pageItems = useMemo(
-    () => filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
-    [filtered, currentPage],
-  )
-
-  const goToPage = (p: number) => setParams({ page: p === 1 ? null : String(p) })
-  const hasFilters = query !== "" || region !== "all" || tab !== "all"
+  const current = Math.min(page, pageCount)
+  const rows = filtered.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE)
+  const resetPage = () => setPage(1)
 
   return (
     <section aria-labelledby="marketplace-title" className="rounded-xl border border-border bg-card">
       <div className="flex flex-col gap-4 border-b border-border p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <h2 id="marketplace-title" className="text-lg font-semibold tracking-tight">
-              Live Marketplace
-            </h2>
-            <button
-              type="button"
-              onClick={onToggleLive}
-              aria-pressed={isLive}
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider ring-1 ring-inset transition-colors",
-                isLive
-                  ? "bg-emerald-500/15 text-emerald-400 ring-emerald-500/30 hover:bg-emerald-500/25"
-                  : "bg-slate-500/15 text-slate-400 ring-slate-500/30 hover:bg-slate-500/25",
-              )}
-            >
-              {isLive ? (
-                <>
-                  <span className="relative flex size-1.5">
-                    <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative inline-flex size-1.5 rounded-full bg-emerald-400" />
-                  </span>
-                  Live
-                  <Pause className="size-3" aria-hidden />
-                </>
-              ) : (
-                <>
-                  Paused
-                  <Play className="size-3" aria-hidden />
-                </>
-              )}
-              <span className="sr-only">{isLive ? "Pause live updates" : "Resume live updates"}</span>
-            </button>
+            <h2 id="marketplace-title" className="text-lg font-semibold">Live Marketplace</h2>
+            <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider", isLive ? "bg-emerald-500/15 text-emerald-400" : "bg-secondary text-muted-foreground")}>
+              <span className={cn("size-1.5 rounded-full", isLive ? "animate-pulse bg-emerald-400" : "bg-muted-foreground")} aria-hidden />
+              {isLive ? "Live feed" : "Paused"}
+            </span>
           </div>
-          <p className="text-xs text-muted-foreground">{filtered.length} matching listings</p>
+          <Button variant="ghost" size="sm" onClick={onToggleLive} aria-pressed={!isLive}>
+            {isLive ? <Pause aria-hidden /> : <Play aria-hidden />}
+            {isLive ? "Pause feed" : "Resume feed"}
+          </Button>
         </div>
 
-        <Tabs value={tab} onValueChange={(v) => setParams({ tab: v === "all" ? null : v, page: null })}>
-          <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto bg-secondary/60 p-1 sm:w-auto">
+        <Tabs value={tab} onValueChange={(v) => { setTab(v as Tab); resetPage() }}>
+          <TabsList className="h-auto w-full flex-wrap justify-start">
             {TABS.map((t) => (
-              <TabsTrigger
-                key={t.value}
-                value={t.value}
-                className="shrink-0 gap-2 px-3 py-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-              >
-                {t.label}
-                <span className="rounded bg-black/20 px-1.5 font-mono text-[10px] tabular-nums">{tabCounts[t.value]}</span>
-              </TabsTrigger>
+              <TabsTrigger key={t.value} value={t.value} className="flex-none">{t.label}</TabsTrigger>
             ))}
           </TabsList>
         </Tabs>
@@ -178,63 +91,36 @@ export function LiveMarketplace({ listings, isLive, onToggleLive, onContact }: L
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
             <Input
               type="search"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search team, product, region or notes…"
               aria-label="Search listings"
-              className="bg-background/60 pl-9"
+              placeholder="Search team, product code (e.g. Y4), notes…"
+              value={query}
+              onChange={(e) => { setQuery(e.target.value); resetPage() }}
+              className="pl-9"
             />
           </div>
-          <div className="flex gap-2">
-            <Select value={region} onValueChange={(v) => setParams({ region: v === "all" ? null : v, page: null })}>
-              <SelectTrigger aria-label="Filter by region" className="w-full bg-background/60 sm:w-40">
-                <SelectValue>{region === "all" ? "All regions" : region}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All regions</SelectItem>
-                {REGIONS.map((r) => (
-                  <SelectItem key={r} value={r}>
-                    {r}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={sort} onValueChange={(v) => setParams({ sort: v === "newest" ? null : v })}>
-              <SelectTrigger aria-label="Sort listings" className="w-full bg-background/60 sm:w-40">
-                <SelectValue>{SORT_LABEL[sort]}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="newest">Newest first</SelectItem>
-                <SelectItem value="priority">Urgent first</SelectItem>
-                <SelectItem value="team">By team</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <Select value={region} onValueChange={(v) => { setRegion(v); resetPage() }}>
+            <SelectTrigger aria-label="Filter by region" className="sm:w-44">
+              <SelectValue placeholder="All regions" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All regions</SelectItem>
+              {OPERATING_AREAS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+              <SelectItem value="Home Office">Home Office (Canada)</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={grade} onValueChange={(v) => { setGrade(v); resetPage() }}>
+            <SelectTrigger aria-label="Filter by grade" className="sm:w-32">
+              <SelectValue placeholder="All grades" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All grades</SelectItem>
+              {GRADES.map((g) => <SelectItem key={g} value={String(g)}>Grade {g}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
-      {pageItems.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-3 px-4 py-16 text-center">
-          <SearchX className="size-8 text-muted-foreground" aria-hidden />
-          <div>
-            <p className="font-medium">No listings match your filters</p>
-            <p className="text-sm text-muted-foreground">Try a different search term, tab or region.</p>
-          </div>
-          {hasFilters && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setSearchInput("")
-                setParams({ q: null, region: null, tab: null, page: null })
-              }}
-            >
-              <X className="size-4" aria-hidden />
-              Clear filters
-            </Button>
-          )}
-        </div>
-      ) : (
+      <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
@@ -242,133 +128,82 @@ export function LiveMarketplace({ listings, isLive, onToggleLive, onContact }: L
               <TableHead>Type</TableHead>
               <TableHead>Team</TableHead>
               <TableHead>Product</TableHead>
-              <TableHead>Quantity</TableHead>
+              <TableHead className="text-center">Grade</TableHead>
+              <TableHead className="text-right">Quantity</TableHead>
               <TableHead>Region</TableHead>
-              <TableHead>Needed By</TableHead>
-              <TableHead>Notes</TableHead>
-              <TableHead className="pr-5 text-right">
-                <span className="sr-only">Actions</span>
-              </TableHead>
+              <TableHead>Delivery</TableHead>
+              <TableHead className="pr-5 text-right">Action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {pageItems.map((listing) => (
-              <ListingRow key={listing.id} listing={listing} onContact={onContact} />
-            ))}
+            {rows.length === 0 ? (
+              <TableRow className="hover:bg-transparent">
+                <TableCell colSpan={9} className="py-14">
+                  <div className="flex flex-col items-center gap-2 text-center text-muted-foreground">
+                    <SearchX className="size-6" aria-hidden />
+                    <p className="text-sm">No listings match these filters.</p>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : (
+              rows.map((l) => {
+                const mine = l.teamId === viewerId
+                const hasContract = contractListingIds.has(l.id)
+                const label = hasContract ? "View Contract" : mine ? "View Offers" : l.status === "CLOSED" ? "Closed" : "Negotiate"
+                return (
+                  <TableRow key={l.id} className={cn(l.isNew && "animate-row-flash", l.status === "CLOSED" && "opacity-60")}>
+                    <TableCell className="pl-5"><StatusBadge status={l.status} /></TableCell>
+                    <TableCell><TypeLabel type={l.type} /></TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      <span className="font-medium">{teamLabel(l.teamId)}</span>
+                      {mine && <span className="ml-1.5 rounded bg-primary/20 px-1 py-0.5 text-[10px] font-semibold text-primary">YOU</span>}
+                    </TableCell>
+                    <TableCell className="max-w-56">
+                      <p className="truncate text-sm font-medium">{l.type === "BUY" || l.type === "SELL" ? PRODUCT_INFO[l.product].name : l.title}</p>
+                      <p className="truncate text-xs text-muted-foreground">{l.unitPrice ? `$${l.unitPrice}/unit · ` : ""}{l.notes}</p>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <span className="inline-flex size-7 items-center justify-center rounded-md bg-secondary font-mono text-xs font-bold">{l.product}{l.grade}</span>
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm tabular-nums whitespace-nowrap">
+                      {l.quantity ? formatUnits(l.quantity) : "—"}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-sm">{l.region}</TableCell>
+                    <TableCell><DeliveryLabel mode={l.delivery} /></TableCell>
+                    <TableCell className="pr-5 text-right">
+                      <Button
+                        size="sm"
+                        variant={hasContract ? "default" : "secondary"}
+                        disabled={!hasContract && !mine && l.status === "CLOSED"}
+                        onClick={() => onOpen(l)}
+                        aria-label={`${label}: ${l.title} by ${teamLabel(l.teamId)}`}
+                      >
+                        {hasContract ? <FileSignature aria-hidden /> : <MessagesSquare aria-hidden />}
+                        {label}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                )
+              })
+            )}
           </TableBody>
         </Table>
-      )}
-
-      <div className="flex flex-col items-center justify-between gap-3 border-t border-border px-4 py-3 text-sm sm:flex-row sm:px-5">
-        <p className="text-muted-foreground" aria-live="polite">
-          Showing{" "}
-          <span className="font-medium text-foreground tabular-nums">
-            {filtered.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)}
-          </span>{" "}
-          of <span className="font-medium text-foreground tabular-nums">{filtered.length}</span> listings
-        </p>
-        <nav aria-label="Marketplace pagination" className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8"
-            disabled={currentPage === 1}
-            onClick={() => goToPage(currentPage - 1)}
-            aria-label="Previous page"
-          >
-            <ChevronLeft className="size-4" />
-          </Button>
-          {pageNumbers(currentPage, pageCount).map((p, i) =>
-            p === "…" ? (
-              <span key={`gap-${i}`} className="px-1 text-muted-foreground">
-                …
-              </span>
-            ) : (
-              <Button
-                key={p}
-                variant={p === currentPage ? "default" : "ghost"}
-                size="icon"
-                className="size-8 font-mono text-xs tabular-nums"
-                onClick={() => goToPage(p)}
-                aria-label={`Page ${p}`}
-                aria-current={p === currentPage ? "page" : undefined}
-              >
-                {p}
-              </Button>
-            ),
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8"
-            disabled={currentPage === pageCount}
-            onClick={() => goToPage(currentPage + 1)}
-            aria-label="Next page"
-          >
-            <ChevronRight className="size-4" />
-          </Button>
-        </nav>
       </div>
+
+      <nav aria-label="Marketplace pagination" className="flex items-center justify-between gap-3 border-t border-border px-4 py-3 sm:px-5">
+        <p className="text-xs text-muted-foreground">
+          {filtered.length === 0 ? "0 results" : `${(current - 1) * PAGE_SIZE + 1}–${Math.min(current * PAGE_SIZE, filtered.length)} of ${filtered.length}`}
+        </p>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon-sm" onClick={() => setPage(current - 1)} disabled={current === 1} aria-label="Previous page">
+            <ChevronLeft aria-hidden />
+          </Button>
+          <span className="px-2 font-mono text-xs tabular-nums">{current} / {pageCount}</span>
+          <Button variant="ghost" size="icon-sm" onClick={() => setPage(current + 1)} disabled={current === pageCount} aria-label="Next page">
+            <ChevronRight aria-hidden />
+          </Button>
+        </div>
+      </nav>
     </section>
   )
-}
-
-function pageNumbers(current: number, total: number): (number | "…")[] {
-  if (total <= 5) return Array.from({ length: total }, (_, i) => i + 1)
-  if (current <= 3) return [1, 2, 3, 4, "…", total]
-  if (current >= total - 2) return [1, "…", total - 3, total - 2, total - 1, total]
-  return [1, "…", current - 1, current, current + 1, "…", total]
-}
-
-const ListingRow = memo(function ListingRow({
-  listing,
-  onContact,
-}: {
-  listing: Listing
-  onContact: (listing: Listing) => void
-}) {
-  const team = TEAM_BY_ID[listing.teamId]
-  const isClosed = listing.status === "CLOSED"
-  return (
-    <TableRow className={cn("group", listing.isNew && "animate-row-flash", isClosed && "opacity-60")}>
-      <TableCell className="pl-5">
-        <StatusBadge status={listing.status} />
-      </TableCell>
-      <TableCell>
-        <TypeLabel type={listing.type} />
-      </TableCell>
-      <TableCell>
-        <div className="flex flex-col">
-          <span className="font-mono text-sm font-semibold">{teamLabel(listing.teamId)}</span>
-          <span className="text-xs text-muted-foreground">{team?.name}</span>
-        </div>
-      </TableCell>
-      <TableCell className="font-medium">{listing.product}</TableCell>
-      <TableCell className="font-mono text-sm tabular-nums text-muted-foreground">{listing.quantity}</TableCell>
-      <TableCell className="text-muted-foreground">{listing.region}</TableCell>
-      <TableCell>
-        <span className="rounded-md bg-secondary px-2 py-0.5 font-mono text-xs font-semibold">{listing.neededBy}</span>
-      </TableCell>
-      <TableCell className="max-w-56 truncate text-muted-foreground" title={listing.notes}>
-        {listing.notes}
-      </TableCell>
-      <TableCell className="pr-5 text-right">
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={isClosed}
-          onClick={() => onContact(listing)}
-          className="border-primary/40 text-primary hover:bg-primary hover:text-primary-foreground"
-        >
-          <MessageSquare className="size-3.5" aria-hidden />
-          Contact
-          <span className="sr-only"> {teamLabel(listing.teamId)} about {listing.product}</span>
-        </Button>
-      </TableCell>
-    </TableRow>
-  )
 })
-
-export function MarketplaceSkeleton() {
-  return <div className="h-[640px] animate-pulse rounded-xl border border-border bg-card" aria-hidden />
-}

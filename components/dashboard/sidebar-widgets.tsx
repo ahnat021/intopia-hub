@@ -6,20 +6,19 @@ import {
   Award,
   MapPin,
   CircleDollarSign,
+  FileSignature,
   FlaskConical,
   Handshake,
   Megaphone,
   Radio,
+  Star,
   Store,
-  TrendingDown,
-  TrendingUp,
   Trophy,
   type LucideIcon,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   ANNOUNCEMENTS,
-  LEADERBOARD,
   TEAM_BY_ID,
   TOP_PARTNERS,
   formatSimClock,
@@ -28,6 +27,7 @@ import {
   type ActivityLog,
   type AnnouncementTag,
   type Listing,
+  type TeamStats,
 } from "@/lib/mock-data"
 
 function Panel({
@@ -80,8 +80,8 @@ export const MarketPulse = memo(function MarketPulse({ listings }: { listings: L
     const regions = new Map<string, number>()
     for (const l of listings) {
       if (l.status === "CLOSED") continue
-      if (l.region !== "Global") regions.set(l.region, (regions.get(l.region) ?? 0) + 1)
-      const stat = stats.find((s) => l.product.startsWith(s.name))
+      if (l.region !== "Home Office") regions.set(l.region, (regions.get(l.region) ?? 0) + 1)
+      const stat = stats.find((s) => s.name === `Product ${l.product}`)
       if (!stat) continue
       if (l.type === "BUY") stat.buyers.add(l.teamId)
       else if (l.type === "SELL") stat.sellers.add(l.teamId)
@@ -147,6 +147,7 @@ const ACTIVITY_META: Record<ActivityKind, { icon: LucideIcon; tone: string }> = 
   deal: { icon: CircleDollarSign, tone: "bg-emerald-500/15 text-emerald-400" },
   partnership: { icon: Handshake, tone: "bg-violet-500/15 text-violet-400" },
   license: { icon: FlaskConical, tone: "bg-amber-500/15 text-amber-400" },
+  contract: { icon: FileSignature, tone: "bg-primary/15 text-primary" },
   announcement: { icon: Megaphone, tone: "bg-rose-500/15 text-rose-400" },
 }
 
@@ -215,47 +216,50 @@ const RANK_STYLE = [
   "bg-orange-500/15 text-orange-300 ring-orange-500/30",
 ]
 
-export function Leaderboard() {
+export function Leaderboard({ stats, viewerId }: { stats: Record<string, TeamStats>; viewerId: string }) {
+  const ranked = useMemo(
+    () => Object.values(stats).sort((a, b) => b.reputation - a.reputation || b.completed - a.completed || b.promptness - a.promptness),
+    [stats],
+  )
+  const viewerRank = ranked.findIndex((s) => s.teamId === viewerId)
+  const top = ranked.slice(0, 6)
+
   return (
-    <Panel title="Most Trusted Teams" icon={Trophy}>
+    <Panel title="Sportsmanship Leaderboard" icon={Trophy}>
+      <div className="grid grid-cols-[1.75rem_1fr_3rem_2.5rem_2.75rem] gap-2 px-4 pt-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <span>#</span>
+        <span>Team</span>
+        <span className="text-right">Rep.</span>
+        <span className="text-right">Deals</span>
+        <span className="text-right">Prompt</span>
+      </div>
       <ol className="divide-y divide-border">
-        {LEADERBOARD.map((entry, i) => {
-          const team = TEAM_BY_ID[entry.teamId]
-          return (
-            <li key={entry.teamId} className="flex items-center gap-3 px-4 py-2.5">
-              <span
-                className={cn(
-                  "flex size-7 shrink-0 items-center justify-center rounded-full font-mono text-xs font-bold ring-1 ring-inset",
-                  RANK_STYLE[i] ?? "bg-secondary text-muted-foreground ring-border",
-                )}
-              >
-                {i + 1}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">
-                  <span className="font-mono">{teamLabel(entry.teamId)}</span>{" "}
-                  <span className="text-muted-foreground">{team?.name}</span>
-                </p>
-                <div className="mt-1 h-1 overflow-hidden rounded-full bg-secondary">
-                  <div className="h-full rounded-full bg-gradient-to-r from-primary to-sky-400" style={{ width: `${entry.score}%` }} />
-                </div>
-              </div>
-              <div className="flex flex-col items-end">
-                <span className="font-mono text-sm font-bold tabular-nums">{entry.score}</span>
-                <span
-                  className={cn(
-                    "flex items-center gap-0.5 font-mono text-[10px] tabular-nums",
-                    entry.delta > 0 ? "text-emerald-400" : entry.delta < 0 ? "text-rose-400" : "text-muted-foreground",
-                  )}
-                >
-                  {entry.delta > 0 ? <TrendingUp className="size-3" aria-hidden /> : entry.delta < 0 ? <TrendingDown className="size-3" aria-hidden /> : null}
-                  {entry.delta > 0 ? `+${entry.delta}` : entry.delta === 0 ? "—" : entry.delta}
-                </span>
-              </div>
-            </li>
-          )
-        })}
+        {top.map((entry, i) => (
+          <li
+            key={entry.teamId}
+            className={cn(
+              "grid grid-cols-[1.75rem_1fr_3rem_2.5rem_2.75rem] items-center gap-2 px-4 py-2",
+              entry.teamId === viewerId && "bg-primary/10",
+            )}
+          >
+            <span className={cn("flex size-6 items-center justify-center rounded-full font-mono text-[11px] font-bold ring-1 ring-inset", RANK_STYLE[i] ?? "bg-secondary text-muted-foreground ring-border")}>
+              {i + 1}
+            </span>
+            <span className="truncate text-sm font-medium">{teamLabel(entry.teamId)}</span>
+            <span className="text-right font-mono text-sm font-bold tabular-nums">{entry.reputation}%</span>
+            <span className="text-right font-mono text-sm tabular-nums">{entry.completed}</span>
+            <span className="flex items-center justify-end gap-0.5 font-mono text-sm tabular-nums">
+              <Star className="size-3 fill-amber-400 text-amber-400" aria-hidden />
+              {entry.promptness.toFixed(1)}
+            </span>
+          </li>
+        ))}
       </ol>
+      {viewerRank >= top.length && (
+        <p className="border-t border-border px-4 py-2.5 text-xs text-muted-foreground">
+          Your rank: <span className="font-mono font-semibold text-foreground">#{viewerRank + 1}</span> · {stats[viewerId]?.reputation}% reputation
+        </p>
+      )}
     </Panel>
   )
 }

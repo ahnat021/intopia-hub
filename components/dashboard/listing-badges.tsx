@@ -1,25 +1,32 @@
-import { ArrowDownLeft, ArrowUpRight, FlaskConical, Handshake, type LucideIcon } from "lucide-react"
+import { ArrowDownLeft, ArrowUpRight, FlaskConical, Handshake, Plane, Ship, type LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { ListingStatus, ListingType } from "@/lib/mock-data"
+import type { DeliveryMode, ListingStatus, ListingType } from "@/lib/mock-data"
 
 const SHORT_TYPE_LABEL: Record<ListingType, string> = {
   BUY: "Buy",
   SELL: "Sell",
-  PARTNERSHIP: "Partnership",
-  RND: "R&D",
+  PARTNERSHIP: "JV",
+  RND: "License",
+}
+
+const STATUS_LABEL: Record<ListingStatus, string> = {
+  OPEN: "OPEN",
+  NEGOTIATING: "NEGOTIATING",
+  PENDING_SIGNATURE: "PENDING SIGNATURE",
+  CLOSED: "CLOSED",
 }
 
 const STATUS_STYLES: Record<ListingStatus, string> = {
-  OPEN: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 ring-emerald-500/25",
-  NEGOTIATING: "bg-amber-500/15 text-amber-600 dark:text-amber-400 ring-amber-500/25",
-  URGENT: "bg-rose-500/15 text-rose-600 dark:text-rose-400 ring-rose-500/25",
-  CLOSED: "bg-slate-500/15 text-slate-600 dark:text-slate-400 ring-slate-500/25",
+  OPEN: "bg-emerald-500/15 text-emerald-400 ring-emerald-500/25",
+  NEGOTIATING: "bg-sky-500/15 text-sky-400 ring-sky-500/25",
+  PENDING_SIGNATURE: "bg-amber-500/15 text-amber-400 ring-amber-500/25",
+  CLOSED: "bg-slate-500/15 text-slate-400 ring-slate-500/25",
 }
 
 const STATUS_DOT: Record<ListingStatus, string> = {
   OPEN: "bg-emerald-400",
-  NEGOTIATING: "bg-amber-400",
-  URGENT: "bg-rose-400",
+  NEGOTIATING: "bg-sky-400",
+  PENDING_SIGNATURE: "bg-amber-400 animate-pulse",
   CLOSED: "bg-slate-400",
 }
 
@@ -27,12 +34,12 @@ export function StatusBadge({ status }: { status: ListingStatus }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-semibold tracking-wide ring-1 ring-inset",
+        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-2 py-0.5 text-[11px] font-semibold tracking-wide ring-1 ring-inset",
         STATUS_STYLES[status],
       )}
     >
       <span aria-hidden className={cn("size-1.5 rounded-full", STATUS_DOT[status])} />
-      {status}
+      {STATUS_LABEL[status]}
     </span>
   )
 }
@@ -58,6 +65,17 @@ export function TypeLabel({ type }: { type: ListingType }) {
     <span className="inline-flex items-center gap-2 whitespace-nowrap text-sm">
       <TypeIcon type={type} />
       {SHORT_TYPE_LABEL[type]}
+    </span>
+  )
+}
+
+export function DeliveryLabel({ mode }: { mode: DeliveryMode | null }) {
+  if (!mode) return <span className="text-muted-foreground">—</span>
+  const Icon = mode === "AIR" ? Plane : Ship
+  return (
+    <span className={cn("inline-flex items-center gap-1.5 whitespace-nowrap text-sm", mode === "AIR" ? "text-sky-300" : "text-teal-300")}>
+      <Icon className="size-3.5" aria-hidden />
+      {mode === "AIR" ? "Air" : "Surface"}
     </span>
   )
 }
