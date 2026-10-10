@@ -1,6 +1,7 @@
 "use client"
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
+import { useHub } from "@/lib/hub-store"
 import { TEAM_BY_ID, updateTeamContact, type Team } from "@/lib/mock-data"
 
 /**
@@ -18,7 +19,7 @@ export interface TeamAccount {
   email: string
 }
 
-export type SignInResult = "ok" | "bad-pin" | "no-account" | "bankrupt"
+export type SignInResult = "ok" | "bad-pin" | "no-account" | "bankrupt" | "banned"
 
 type AuthStatus = "loading" | "signedOut" | "signedIn"
 
@@ -60,6 +61,7 @@ export const isBankrupt = (teamId: string) => (TEAM_BY_ID[teamId]?.equity ?? 0) 
 const AuthContext = createContext<AuthValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const { bannedIds } = useHub()
   const [status, setStatus] = useState<AuthStatus>("loading")
   const [accounts, setAccounts] = useState<Record<string, TeamAccount>>(DEMO_ACCOUNTS)
   const [teamId, setTeamId] = useState<string | null>(null)
@@ -102,13 +104,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = useCallback(
     (id: string, pin: string): SignInResult => {
       if (isBankrupt(id)) return "bankrupt"
+      if (bannedIds.includes(id)) return "banned"
       const account = accounts[id]
       if (!account) return "no-account"
       if (account.pin !== pin) return "bad-pin"
       startSession(account)
       return "ok"
     },
-    [accounts, startSession],
+    [accounts, bannedIds, startSession],
   )
 
   const signOut = useCallback(() => {
@@ -116,6 +119,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTeamId(null)
     setStatus("signedOut")
   }, [])
+
+  const activeTeamBanned = teamId !== null && bannedIds.includes(teamId)
+  useEffect(() => {
+    if (activeTeamBanned) signOut()
+  }, [activeTeamBanned, signOut])
 
   const value = useMemo<AuthValue>(
     () => ({ status, team: teamId ? (TEAM_BY_ID[teamId] ?? null) : null, findAccount, register, signIn, signOut }),

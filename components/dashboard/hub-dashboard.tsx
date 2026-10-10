@@ -1,7 +1,8 @@
 "use client"
 
 import { useCallback, useMemo, useState } from "react"
-import { Lock } from "lucide-react"
+import { Compass, Lock } from "lucide-react"
+import { OnboardingTour, useFirstVisitTour } from "./onboarding-tour"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
 import { useHub } from "@/lib/hub-store"
@@ -24,6 +25,7 @@ export function HubDashboard() {
   const hub = useHub()
   const { listings, threads, contracts, lockedOut, setLockedOut, openThread, postListing } = hub
   const [session, setSession] = useState<{ listingId: string; threadId: string | null } | null>(null)
+  const [tourOpen, setTourOpen] = useFirstVisitTour()
 
   const viewerId = team!.id
   const activeListing = session ? (listings.find((l) => l.id === session.listingId) ?? null) : null
@@ -64,6 +66,11 @@ export function HubDashboard() {
   return (
     <div className="min-h-dvh">
       <TopBar team={team} lockedOut={lockedOut} onSignOut={signOut}>
+        <Button variant="ghost" size="sm" onClick={() => setTourOpen(true)}>
+          <Compass aria-hidden />
+          <span className="hidden md:inline">Tour</span>
+          <span className="sr-only md:hidden">Replay tour</span>
+        </Button>
         <RulebookSheet />
         <PostListingDialog teamId={team.id} locked={lockedOut} onPost={postListing} />
       </TopBar>
@@ -123,6 +130,7 @@ export function HubDashboard() {
         onSelectThread={(threadId) => setSession((s) => (s ? { ...s, threadId } : s))}
         onClose={() => setSession(null)}
       />
+      <OnboardingTour open={tourOpen} onOpenChange={setTourOpen} />
     </div>
   )
 }

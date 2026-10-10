@@ -2,26 +2,33 @@
 
 import { useState } from "react"
 import confetti from "canvas-confetti"
-import { CheckCircle2, Clock, FileSignature, Lock, PenLine, ShieldCheck } from "lucide-react"
+import { Ban, CheckCircle2, Clock, FileSignature, GitBranch, Lock, PenLine, ShieldAlert, ShieldCheck, Star } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import { DELIVERY_INFO, PRODUCT_INFO, formatUSD, formatUnits, productCode } from "@/lib/intopia-rules"
-import { formatSimClock, teamLabel, type Contract } from "@/lib/mock-data"
+import { formatSimClock, teamLabel, type Contract, type ContractStatus } from "@/lib/mock-data"
 
-const KIND_LABEL: Record<Contract["kind"], string> = {
+export const KIND_LABEL: Record<Contract["kind"], string> = {
   PRODUCT_SALE: "Product Sale",
   PATENT_LICENSE: "Patent License",
   B2B_LOAN: "B2B Loan",
 }
-const ROLES: Record<Contract["kind"], [string, string]> = {
+export const ROLES: Record<Contract["kind"], [string, string]> = {
   PRODUCT_SALE: ["Seller", "Buyer"],
   PATENT_LICENSE: ["Licensor", "Licensee"],
   B2B_LOAN: ["Lender", "Borrower"],
 }
 
-function termRows(c: Contract): [string, string][] {
+const STATUS_META: Record<ContractStatus, { label: string; className: string; icon: typeof Clock }> = {
+  AWAITING: { label: "Awaiting Counterparty Response", className: "bg-amber-500/15 text-amber-300 ring-amber-500/30", icon: Clock },
+  FINALIZED: { label: "Officially Finalized & Locked", className: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30", icon: Lock },
+  COUNTERED: { label: "Superseded by Counter-Offer", className: "bg-sky-500/15 text-sky-300 ring-sky-500/30", icon: GitBranch },
+  REJECTED: { label: "Rejected · Negotiation Closed", className: "bg-destructive/15 text-destructive ring-destructive/30", icon: Ban },
+}
+
+export function termRows(c: Contract): [string, string][] {
   const rows: [string, string][] = []
   if (c.kind !== "B2B_LOAN") rows.push(["Product", `${PRODUCT_INFO[c.product].name} · ${productCode(c.product, c.grade)}`])
   if (c.kind === "PRODUCT_SALE") {
@@ -37,15 +44,12 @@ function Signature({ teamId, signed, at }: { teamId: string; signed: boolean; at
   return (
     <div className="flex flex-1 flex-col gap-1">
       <div className={cn("flex h-9 items-end border-b border-dashed pb-1", signed ? "border-emerald-400/60" : "border-border")}>
-        {signed ? (
-          <span className="font-serif text-lg italic text-emerald-300">{teamLabel(teamId)}</span>
-        ) : (
-          <span className="text-xs text-muted-foreground">Awaiting signature</span>
-        )}
+        {signed ? <span className="font-serif text-lg italic text-emerald-300">{teamLabel(teamId)}</span> : <span className="text-xs text-muted-foreground">Awaiting signature</span>}
       </div>
       <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
         {signed ? <CheckCircle2 className="size-3 text-emerald-400" aria-hidden /> : <Clock className="size-3" aria-hidden />}
-        {teamLabel(teamId)}{signed && at ? ` · ${formatSimClock(at)}` : ""}
+        {teamLabel(teamId)}
+        {signed && at ? ` · ${formatSimClock(at)}` : ""}
       </p>
     </div>
   )
@@ -58,22 +62,26 @@ function celebrate() {
   setTimeout(() => confetti({ particleCount: 80, spread: 110, origin: { x: 0.6, y: 0.5 }, colors }), 220)
 }
 
-export function ContractCard({
-  contract,
-  viewerId,
-  locked,
-  onFinalize,
-}: {
+interface Props {
   contract: Contract
   viewerId: string
   locked: boolean
+  closed: boolean
+  canRate: boolean
   onFinalize: (contractId: string) => Contract | null
-}) {
+  onCounter: (contract: Contract) => void
+  onRate: (contract: Contract) => void
+}
+
+export function ContractCard({ contract, viewerId, locked, closed, canRate, onFinalize, onCounter, onRate }: Props) {
   const [reviewOpen, setReviewOpen] = useState(false)
-  const finalized = contract.status === "FINALIZED"
-  const canSign = !finalized && contract.counterpartyId === viewerId
+  const { status } = contract
+  const finalized = status === "FINALIZED"
+  const isRecipient = status === "AWAITING" && contract.counterpartyId === viewerId && !closed
   const receiverId = contract.providerId === contract.initiatorId ? contract.counterpartyId : contract.initiatorId
   const [providerRole, receiverRole] = ROLES[contract.kind]
+  const meta = STATUS_META[status]
+  const inactive = status === "COUNTERED" || status === "REJECTED"
 
   const confirm = () => {
     const result = onFinalize(contract.id)
@@ -88,30 +96,40 @@ export function ContractCard({
 
   return (
     <article
-      aria-label={`Contract ${contract.id}`}
+      aria-label={`Contract ${contract.id}, revision ${contract.revision}`}
       className={cn(
-        "overflow-hidden rounded-xl border bg-gradient-to-b from-secondary/80 to-card",
-        finalized ? "border-emerald-500/40" : "border-amber-500/40",
+        "overflow-hidden rounded-xl border bg-gradient-to-b from-secondary/80 to-card transition-opacity",
+        finalized ? "border-emerald-500/40" : status === "AWAITING" ? "border-amber-500/40" : "border-border",
+        inactive && "opacity-60",
       )}
     >
       <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-2.5">
         <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest">
           <FileSignature className="size-3.5 text-primary" aria-hidden />
-          {KIND_LABEL[contract.kind]} Contract
+          {KIND_LABEL[contract.kind]} · R{contract.revision}
         </p>
         <span className="font-mono text-[11px] text-muted-foreground">{contract.id}</span>
       </div>
 
       <div className="flex flex-col gap-3 px-4 py-3">
-        <span
-          className={cn(
-            "inline-flex w-fit items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold ring-1 ring-inset",
-            finalized ? "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30" : "bg-amber-500/15 text-amber-300 ring-amber-500/30",
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className={cn("inline-flex w-fit items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold ring-1 ring-inset", meta.className)}>
+            <meta.icon className="size-3" aria-hidden />
+            {meta.label}
+          </span>
+          {contract.finalizedByAdmin && (
+            <span className="inline-flex items-center gap-1 rounded-md bg-violet-500/15 px-2 py-1 text-[11px] font-semibold text-violet-300 ring-1 ring-inset ring-violet-500/30">
+              <ShieldAlert className="size-3" aria-hidden />
+              Admin approved
+            </span>
           )}
-        >
-          {finalized ? <Lock className="size-3" aria-hidden /> : <Clock className="size-3" aria-hidden />}
-          {finalized ? "Officially Finalized & Locked" : "Awaiting Counterparty Signature"}
-        </span>
+          {contract.adminOverridden && (
+            <span className="inline-flex items-center gap-1 rounded-md bg-violet-500/15 px-2 py-1 text-[11px] font-semibold text-violet-300 ring-1 ring-inset ring-violet-500/30">
+              <ShieldAlert className="size-3" aria-hidden />
+              Terms overridden
+            </span>
+          )}
+        </div>
 
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div className="rounded-lg bg-background/40 p-2">
@@ -138,21 +156,36 @@ export function ContractCard({
           <span className="font-mono text-base font-bold tabular-nums">{formatUSD(contract.totalValue)}</span>
         </div>
 
-        <div className="flex gap-4">
-          <Signature teamId={contract.initiatorId} signed at={contract.createdAt} />
-          <Signature teamId={contract.counterpartyId} signed={finalized} at={contract.finalizedAt} />
-        </div>
-
-        {canSign && (
-          <Button onClick={() => setReviewOpen(true)} disabled={locked} className="w-full">
-            <PenLine aria-hidden />
-            {locked ? "Signing locked (8:30 PM)" : "Review & Sign Contract"}
-          </Button>
+        {(status === "AWAITING" || finalized) && (
+          <div className="flex gap-4">
+            <Signature teamId={contract.initiatorId} signed at={contract.createdAt} />
+            <Signature teamId={contract.counterpartyId} signed={finalized} at={contract.finalizedAt} />
+          </div>
         )}
-        {!finalized && contract.initiatorId === viewerId && (
+
+        {isRecipient && (
+          <div className="grid grid-cols-2 gap-2" data-tour="contract-actions">
+            <Button variant="outline" onClick={() => onCounter(contract)} disabled={locked}>
+              <GitBranch aria-hidden />
+              Modify & Counter
+            </Button>
+            <Button onClick={() => setReviewOpen(true)} disabled={locked}>
+              <PenLine aria-hidden />
+              Accept & Finalize
+            </Button>
+          </div>
+        )}
+        {isRecipient && locked && <p className="text-xs text-amber-300">Signing locked at 8:30 PM for period processing.</p>}
+        {status === "AWAITING" && contract.initiatorId === viewerId && !closed && (
           <p className="text-pretty text-xs text-muted-foreground">
-            Sent to {teamLabel(contract.counterpartyId)}. Switch Team to sign as the counterparty.
+            Sent to {teamLabel(contract.counterpartyId)}. Switch Team to respond as the counterparty.
           </p>
+        )}
+        {finalized && canRate && (
+          <Button variant="outline" size="sm" onClick={() => onRate(contract)}>
+            <Star aria-hidden />
+            Rate your partner
+          </Button>
         )}
       </div>
 
@@ -163,9 +196,7 @@ export function ContractCard({
               <ShieldCheck className="size-5 text-primary" aria-hidden />
               Review contract {contract.id}
             </DialogTitle>
-            <DialogDescription>
-              Signing is binding. Both teams are committed to these terms for Period 4 processing.
-            </DialogDescription>
+            <DialogDescription>Accepting is binding within the simulation. Both teams commit to these terms for Period 4 processing.</DialogDescription>
           </DialogHeader>
           <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 rounded-lg bg-secondary/60 p-3 text-sm">
             <dt className="text-muted-foreground">{providerRole}</dt>
@@ -185,7 +216,7 @@ export function ContractCard({
             <Button variant="ghost" onClick={() => setReviewOpen(false)}>Cancel</Button>
             <Button onClick={confirm} disabled={locked}>
               <CheckCircle2 aria-hidden />
-              Confirm & Finalize Trade
+              Accept & Finalize Trade
             </Button>
           </DialogFooter>
         </DialogContent>

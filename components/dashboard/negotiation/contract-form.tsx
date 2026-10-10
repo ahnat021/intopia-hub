@@ -25,7 +25,7 @@ import {
   type Product,
   type Region,
 } from "@/lib/intopia-rules"
-import type { ContractKind, Listing, Team } from "@/lib/mock-data"
+import type { Contract, ContractKind, Listing, Team } from "@/lib/mock-data"
 import type { ContractDraft } from "@/lib/hub-store"
 
 const KIND_OPTIONS: { value: ContractKind; label: string }[] = [
@@ -61,24 +61,28 @@ interface Props {
   viewer: Team
   counterparty: Team
   locked: boolean
+  /** When set, the form is a counter-offer pre-filled with this proposal's terms. */
+  initial?: Contract
   onSubmit: (draft: ContractDraft) => void
   onCancel: () => void
 }
 
-export function ContractForm({ listing, threadId, viewer, counterparty, locked, onSubmit, onCancel }: Props) {
-  const [kind, setKind] = useState<ContractKind>(listing.type === "RND" ? "PATENT_LICENSE" : "PRODUCT_SALE")
-  const [providerId, setProviderId] = useState(() => defaultProvider(listing, viewer.id, counterparty.id))
-  const [product, setProduct] = useState<Product>(listing.product)
-  const [grade, setGrade] = useState(listing.grade)
-  const [quantity, setQuantity] = useState(listing.quantity ? String(listing.quantity) : "")
-  const [price, setPrice] = useState(listing.unitPrice ? String(listing.unitPrice) : "")
-  const [delivery, setDelivery] = useState<DeliveryMode>(listing.delivery ?? "SURFACE")
-  const [region, setRegion] = useState<Region>(listing.region === "Home Office" ? counterparty.region : listing.region)
+export function ContractForm({ listing, threadId, viewer, counterparty, locked, initial, onSubmit, onCancel }: Props) {
+  const [kind, setKind] = useState<ContractKind>(initial?.kind ?? (listing.type === "RND" ? "PATENT_LICENSE" : "PRODUCT_SALE"))
+  const [providerId, setProviderId] = useState(() => initial?.providerId ?? defaultProvider(listing, viewer.id, counterparty.id))
+  const [product, setProduct] = useState<Product>(initial?.product ?? listing.product)
+  const [grade, setGrade] = useState(initial?.grade ?? listing.grade)
+  const [quantity, setQuantity] = useState(initial?.quantity ? String(initial.quantity) : listing.quantity ? String(listing.quantity) : "")
+  const [price, setPrice] = useState(initial?.unitPrice ? String(initial.unitPrice) : listing.unitPrice ? String(listing.unitPrice) : "")
+  const [delivery, setDelivery] = useState<DeliveryMode>(initial?.delivery ?? listing.delivery ?? "SURFACE")
+  const [region, setRegion] = useState<Region>(initial?.region ?? (listing.region === "Home Office" ? counterparty.region : listing.region))
   const [source, setSource] = useState<InventorySource>("BEGINNING")
-  const [fee, setFee] = useState("")
-  const [principal, setPrincipal] = useState("")
-  const [rate, setRate] = useState("6")
-  const [terms, setTerms] = useState({ cash: "50", ar1: "30", ar2: "20" })
+  const [fee, setFee] = useState(initial?.kind === "PATENT_LICENSE" ? String(initial.totalValue / 1000) : "")
+  const [principal, setPrincipal] = useState(initial?.kind === "B2B_LOAN" ? String(initial.totalValue / 1000) : "")
+  const [rate, setRate] = useState(initial?.kind === "B2B_LOAN" ? String(initial.interestRate) : "6")
+  const [terms, setTerms] = useState(
+    initial ? { cash: String(initial.cashPct), ar1: String(initial.ar1Pct), ar2: String(initial.ar2Pct) } : { cash: "50", ar1: "30", ar2: "20" },
+  )
   const [submitted, setSubmitted] = useState(false)
 
   const provider = providerId === viewer.id ? viewer : counterparty
@@ -146,7 +150,7 @@ export function ContractForm({ listing, threadId, viewer, counterparty, locked, 
       <div className="flex items-center justify-between gap-2">
         <h3 className="flex items-center gap-2 text-sm font-semibold">
           <FileSignature className="size-4 text-primary" aria-hidden />
-          Draft formal trade contract
+          {initial ? `Modify & counter R${initial.revision}` : "Propose a trade contract"}
         </h3>
         <span className="font-mono text-[11px] text-muted-foreground">{viewer.name} → {counterparty.name}</span>
       </div>
@@ -279,7 +283,7 @@ export function ContractForm({ listing, threadId, viewer, counterparty, locked, 
           <Button type="button" variant="ghost" size="sm" onClick={onCancel}>Cancel</Button>
           <Button type="submit" size="sm" disabled={locked}>
             <FileSignature aria-hidden />
-            Send for signature
+            {initial ? "Send counter-offer" : "Send proposal"}
           </Button>
         </div>
       </div>
