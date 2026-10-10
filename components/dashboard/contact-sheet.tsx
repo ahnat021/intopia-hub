@@ -1,14 +1,14 @@
 "use client"
 
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react"
-import { Send } from "lucide-react"
+import { Copy, Mail, MessageCircle, Send } from "lucide-react"
 import { toast } from "sonner"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
-import { TEAM_BY_ID, teamLabel, type Listing } from "@/lib/mock-data"
+import { TEAM_BY_ID, teamLabel, whatsappHref, type Listing, type Team } from "@/lib/mock-data"
 import { StatusBadge, TypeLabel } from "./listing-badges"
 
 interface Message {
@@ -33,6 +33,74 @@ export function ContactSheet({ listing, onOpenChange }: { listing: Listing | nul
   )
 }
 
+function TeamContactCard({ team }: { team: Team }) {
+  async function copy(value: string, what: string) {
+    try {
+      await navigator.clipboard.writeText(value)
+      toast.success(`${what} copied`, { description: value })
+    } catch {
+      toast.error(`Couldn't copy ${what.toLowerCase()}`)
+    }
+  }
+
+  const rows = [
+    {
+      key: "whatsapp",
+      label: "WhatsApp",
+      value: team.whatsapp,
+      href: whatsappHref(team.whatsapp),
+      icon: MessageCircle,
+      tone: "text-emerald-400 bg-emerald-500/15",
+      external: true,
+    },
+    {
+      key: "email",
+      label: "Email",
+      value: team.email,
+      href: `mailto:${team.email}`,
+      icon: Mail,
+      tone: "text-primary bg-primary/15",
+      external: false,
+    },
+  ]
+
+  return (
+    <section aria-label="Team contact info" className="mt-4 rounded-lg border border-border bg-background/60">
+      <p className="border-b border-border px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        Team Contact Info · Off-platform
+      </p>
+      <ul className="divide-y divide-border">
+        {rows.map(({ key, label, value, href, icon: Icon, tone, external }) => (
+          <li key={key} className="flex items-center gap-3 px-3 py-2">
+            <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-md", tone)}>
+              <Icon className="size-3.5" aria-hidden />
+            </span>
+            <a
+              href={href}
+              target={external ? "_blank" : undefined}
+              rel={external ? "noopener noreferrer" : undefined}
+              className="min-w-0 flex-1 leading-tight hover:underline"
+            >
+              <span className="block text-[11px] text-muted-foreground">{label}</span>
+              <span className="block truncate font-mono text-sm">{value}</span>
+            </a>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-7 text-muted-foreground"
+              onClick={() => copy(value, label)}
+              aria-label={`Copy ${label}`}
+            >
+              <Copy className="size-3.5" />
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
 function ChatPane({ listing }: { listing: Listing }) {
   const team = TEAM_BY_ID[listing.teamId]
   const label = teamLabel(listing.teamId)
@@ -42,6 +110,9 @@ function ChatPane({ listing }: { listing: Listing }) {
       from: "me",
       text: `Hi ${label}, we're interested in your listing for ${listing.product} (${listing.quantity}).`,
     },
+    { id: 1, from: "them", text: `Hey! Still available. We're targeting delivery by ${listing.neededBy}. What volume do you need?` },
+    { id: 2, from: "me", text: "Full quantity if the price works. Can you share your best unit price?" },
+    { id: 3, from: "them", text: "We can do a 4% discount on the full lot if we sign this period." },
   ])
   const [draft, setDraft] = useState("")
   const [isTyping, setIsTyping] = useState(false)
@@ -101,7 +172,8 @@ function ChatPane({ listing }: { listing: Listing }) {
             </SheetDescription>
           </div>
         </div>
-        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-secondary/40 p-3 text-sm">
+        {team && <TeamContactCard team={team} />}
+        <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-secondary/40 p-3 text-sm">
           <TypeLabel type={listing.type} />
           <span className="font-medium">{listing.product}</span>
           <span className="font-mono text-xs text-muted-foreground">{listing.quantity}</span>

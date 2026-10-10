@@ -1,8 +1,9 @@
+import type { ReactNode } from "react"
 import Image from "next/image"
 import { Globe2 } from "lucide-react"
 import { PeriodStatus } from "./period-status"
 
-export function HubHeader() {
+export function HubHeader({ toolbar }: { toolbar?: ReactNode }) {
   return (
     <header className="relative overflow-hidden border-b border-border bg-[#0b1324]">
       <Image
@@ -17,6 +18,12 @@ export function HubHeader() {
         aria-hidden
         className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#0b1324] via-[#0b1324]/85 to-[#0b1324]/30"
       />
+
+      {toolbar && (
+        <div className="relative border-b border-white/10 bg-[#0b1324]/60 backdrop-blur">
+          <div className="mx-auto max-w-[1440px] px-4 py-2.5 sm:px-6 lg:px-8">{toolbar}</div>
+        </div>
+      )}
 
       <div className="relative mx-auto flex max-w-[1440px] flex-col gap-6 px-4 py-6 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8 lg:py-7">
         <div className="flex items-center gap-4">

@@ -3,14 +3,20 @@
 import { Suspense, useCallback, useMemo, useState } from "react"
 import { toast } from "sonner"
 import { useLiveMarket, type NewListingInput } from "@/hooks/use-live-market"
+import { useAuth } from "@/lib/auth-context"
 import { TEAMS, teamLabel, type FeaturedOpportunity, type Listing } from "@/lib/mock-data"
+import { AccountBar } from "./account-bar"
+import { CompliancePanel } from "./compliance-panel"
 import { ContactSheet } from "./contact-sheet"
 import { FeaturedOpportunities } from "./featured-opportunities"
+import { HubHeader } from "./hub-header"
 import { LiveMarketplace, MarketplaceSkeleton } from "./live-marketplace"
 import { MetricsStrip } from "./metrics-strip"
-import { ActivityFeed, Announcements, Leaderboard, TopPartners } from "./sidebar-widgets"
+import { PostListingDialog } from "./post-listing-dialog"
+import { ActivityFeed, Announcements, Leaderboard, MarketPulse, TopPartners } from "./sidebar-widgets"
 
 export function HubDashboard() {
+  const { team, signOut } = useAuth()
   const { listings, activity, isLive, setIsLive, pushListing, pushActivity } = useLiveMarket()
   const [contactListing, setContactListing] = useState<Listing | null>(null)
 
@@ -59,33 +65,43 @@ export function HubDashboard() {
 
   const toggleLive = useCallback(() => setIsLive((v) => !v), [setIsLive])
 
+  if (!team) return null
+
   return (
-    <>
-      <div className="grid gap-4 lg:grid-cols-12 lg:gap-6">
-        <MetricsStrip data={metrics} />
+    <div className="min-h-dvh">
+      <HubHeader
+        toolbar={
+          <AccountBar team={team} onSignOut={signOut}>
+            <CompliancePanel listings={listings} />
+            <PostListingDialog team={team} onPost={handlePost} />
+          </AccountBar>
+        }
+      />
+      <main className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <div className="grid gap-4 lg:grid-cols-12 lg:gap-6">
+          <MetricsStrip data={metrics} />
 
-        <div className="flex min-w-0 flex-col gap-6 lg:col-span-8 xl:col-span-9">
-          <Suspense fallback={<MarketplaceSkeleton />}>
-            <LiveMarketplace
-              listings={listings}
-              isLive={isLive}
-              onToggleLive={toggleLive}
-              onPost={handlePost}
-              onContact={setContactListing}
-            />
-          </Suspense>
-          <FeaturedOpportunities onView={handleFeatured} />
+          <div className="flex min-w-0 flex-col gap-6 lg:col-span-8 xl:col-span-9">
+            <Suspense fallback={<MarketplaceSkeleton />}>
+              <LiveMarketplace listings={listings} isLive={isLive} onToggleLive={toggleLive} onContact={setContactListing} />
+            </Suspense>
+            <FeaturedOpportunities onView={handleFeatured} />
+          </div>
+
+          <aside aria-label="Market insights" className="flex min-w-0 flex-col gap-4 lg:col-span-4 xl:col-span-3">
+            <MarketPulse listings={listings} />
+            <ActivityFeed activity={activity} />
+            <Announcements />
+            <Leaderboard />
+            <TopPartners />
+          </aside>
         </div>
-
-        <aside aria-label="Market insights" className="flex min-w-0 flex-col gap-4 lg:col-span-4 xl:col-span-3">
-          <ActivityFeed activity={activity} />
-          <Announcements />
-          <Leaderboard />
-          <TopPartners />
-        </aside>
-      </div>
+      </main>
+      <footer className="border-t border-border py-6 text-center text-xs text-muted-foreground">
+        Intopia Hub · Simulated market data for training purposes
+      </footer>
 
       <ContactSheet listing={contactListing} onOpenChange={(open) => !open && setContactListing(null)} />
-    </>
+    </div>
   )
 }

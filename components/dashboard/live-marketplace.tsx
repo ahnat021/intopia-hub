@@ -12,10 +12,8 @@ import { cn } from "@/lib/utils"
 import { useDebouncedValue } from "@/hooks/use-debounced-value"
 import { REGIONS, TEAM_BY_ID, teamLabel, type Listing, type ListingStatus, type ListingType } from "@/lib/mock-data"
 import { StatusBadge, TypeLabel } from "./listing-badges"
-import { PostListingDialog } from "./post-listing-dialog"
-import type { NewListingInput } from "@/hooks/use-live-market"
 
-const PAGE_SIZE = 8
+const PAGE_SIZE = 6
 
 const TABS: { value: string; label: string; type?: ListingType }[] = [
   { value: "all", label: "All Listings" },
@@ -35,7 +33,6 @@ interface LiveMarketplaceProps {
   listings: Listing[]
   isLive: boolean
   onToggleLive: () => void
-  onPost: (input: NewListingInput) => void
   onContact: (listing: Listing) => void
 }
 
@@ -64,7 +61,7 @@ function useUrlState() {
   return { tab, region, sort, query, page, setParams }
 }
 
-export function LiveMarketplace({ listings, isLive, onToggleLive, onPost, onContact }: LiveMarketplaceProps) {
+export function LiveMarketplace({ listings, isLive, onToggleLive, onContact }: LiveMarketplaceProps) {
   const { tab, region, sort, query, page, setParams } = useUrlState()
   const [searchInput, setSearchInput] = useState(query)
   const debouncedSearch = useDebouncedValue(searchInput, 300)
@@ -158,7 +155,7 @@ export function LiveMarketplace({ listings, isLive, onToggleLive, onPost, onCont
               <span className="sr-only">{isLive ? "Pause live updates" : "Resume live updates"}</span>
             </button>
           </div>
-          <PostListingDialog onPost={onPost} />
+          <p className="text-xs text-muted-foreground">{filtered.length} matching listings</p>
         </div>
 
         <Tabs value={tab} onValueChange={(v) => setParams({ tab: v === "all" ? null : v, page: null })}>
