@@ -5,6 +5,29 @@
 
 :root {
   --radius: 0.75rem;
+  --background: oklch(0.975 0.006 255);
+  --foreground: oklch(0.21 0.03 262);
+  --card: oklch(0.995 0.002 255);
+  --card-foreground: oklch(0.21 0.03 262);
+  --popover: oklch(0.995 0.002 255);
+  --popover-foreground: oklch(0.21 0.03 262);
+  --primary: oklch(0.55 0.19 258);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.945 0.012 255);
+  --secondary-foreground: oklch(0.27 0.03 262);
+  --muted: oklch(0.95 0.01 255);
+  --muted-foreground: oklch(0.48 0.03 258);
+  --accent: oklch(0.93 0.018 255);
+  --accent-foreground: oklch(0.21 0.03 262);
+  --destructive: oklch(0.56 0.21 25);
+  --border: oklch(0.89 0.015 255);
+  --input: oklch(0.87 0.017 255);
+  --ring: oklch(0.55 0.19 258);
+  --success: oklch(0.56 0.14 160);
+  --backdrop-opacity: 0.09;
+}
+
+.dark {
   --background: oklch(0.155 0.028 262);
   --foreground: oklch(0.965 0.008 255);
   --card: oklch(0.195 0.033 262);
@@ -24,6 +47,29 @@
   --input: oklch(0.3 0.035 262);
   --ring: oklch(0.64 0.185 256);
   --success: oklch(0.74 0.16 160);
+  --backdrop-opacity: 0.16;
+}
+
+/*
+ * Status accents were tuned for the dark canvas (pale 200–400 shades). In light mode,
+ * remap those shades to deeper tones so status text keeps WCAG-friendly contrast
+ * without touching every component.
+ */
+html:not(.dark) {
+  --color-emerald-200: oklch(0.45 0.11 163);
+  --color-emerald-300: oklch(0.5 0.12 163);
+  --color-emerald-400: oklch(0.56 0.13 163);
+  --color-amber-200: oklch(0.47 0.12 55);
+  --color-amber-300: oklch(0.52 0.14 55);
+  --color-amber-400: oklch(0.62 0.16 65);
+  --color-sky-300: oklch(0.5 0.13 240);
+  --color-sky-400: oklch(0.56 0.14 240);
+  --color-violet-300: oklch(0.5 0.2 292);
+  --color-violet-400: oklch(0.56 0.21 292);
+  --color-rose-300: oklch(0.52 0.19 15);
+  --color-rose-400: oklch(0.58 0.2 15);
+  --color-red-300: oklch(0.52 0.2 27);
+  --color-red-400: oklch(0.58 0.21 27);
 }
 
 @theme inline {
@@ -70,11 +116,30 @@
     @apply border-border outline-ring/50;
   }
   html {
+    color-scheme: light;
+  }
+  html.dark {
     color-scheme: dark;
   }
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply text-foreground antialiased;
   }
+}
+
+/* The globe artwork is dark; in light mode invert it into faint ink lines on paper. */
+.hub-backdrop {
+  opacity: var(--backdrop-opacity);
+  mask-image: radial-gradient(ellipse at 70% 0%, black 30%, transparent 75%);
+}
+html:not(.dark) .hub-backdrop {
+  filter: invert(1) grayscale(1) contrast(1.4);
+}
+
+[data-tour-active="true"] {
+  outline: 2px solid var(--primary);
+  outline-offset: 4px;
+  border-radius: var(--radius-xl);
+  transition: outline-color 0.2s ease;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -28,6 +28,8 @@ import {
   type AnnouncementTag,
   type Listing,
   type TeamStats,
+  averageRating,
+  topTag,
 } from "@/lib/mock-data"
 
 function Panel({
@@ -218,7 +220,7 @@ const RANK_STYLE = [
 
 export function Leaderboard({ stats, viewerId }: { stats: Record<string, TeamStats>; viewerId: string }) {
   const ranked = useMemo(
-    () => Object.values(stats).sort((a, b) => b.reputation - a.reputation || b.completed - a.completed || b.promptness - a.promptness),
+    () => Object.values(stats).sort((a, b) => averageRating(b) - averageRating(a) || b.reputation - a.reputation || b.completed - a.completed),
     [stats],
   )
   const viewerRank = ranked.findIndex((s) => s.teamId === viewerId)
@@ -231,7 +233,7 @@ export function Leaderboard({ stats, viewerId }: { stats: Record<string, TeamSta
         <span>Team</span>
         <span className="text-right">Rep.</span>
         <span className="text-right">Deals</span>
-        <span className="text-right">Prompt</span>
+        <span className="text-right">Rating</span>
       </div>
       <ol className="divide-y divide-border">
         {top.map((entry, i) => (
@@ -245,12 +247,15 @@ export function Leaderboard({ stats, viewerId }: { stats: Record<string, TeamSta
             <span className={cn("flex size-6 items-center justify-center rounded-full font-mono text-[11px] font-bold ring-1 ring-inset", RANK_STYLE[i] ?? "bg-secondary text-muted-foreground ring-border")}>
               {i + 1}
             </span>
-            <span className="truncate text-sm font-medium">{teamLabel(entry.teamId)}</span>
+            <span className="flex min-w-0 flex-col">
+              <span className="truncate text-sm font-medium">{teamLabel(entry.teamId)}</span>
+              {topTag(entry) && <span className="truncate text-[10px] text-muted-foreground">{topTag(entry)}</span>}
+            </span>
             <span className="text-right font-mono text-sm font-bold tabular-nums">{entry.reputation}%</span>
             <span className="text-right font-mono text-sm tabular-nums">{entry.completed}</span>
-            <span className="flex items-center justify-end gap-0.5 font-mono text-sm tabular-nums">
+            <span className="flex items-center justify-end gap-0.5 font-mono text-sm tabular-nums" title={`${entry.ratingCount} partner ratings`}>
               <Star className="size-3 fill-amber-400 text-amber-400" aria-hidden />
-              {entry.promptness.toFixed(1)}
+              {averageRating(entry).toFixed(1)}
             </span>
           </li>
         ))}

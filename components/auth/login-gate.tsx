@@ -56,6 +56,9 @@ function ReturningForm({ teamId }: { teamId: string }) {
     if (result === "bad-pin") {
       setError("Incorrect PIN. Try again.")
       setPin("")
+    } else if (result === "banned") {
+      setError("This team has been removed from the hub by the administrator.")
+      setPin("")
     }
   }
 

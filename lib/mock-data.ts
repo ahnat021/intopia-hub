@@ -44,7 +44,8 @@ export interface Listing {
 }
 
 export type ContractKind = "PRODUCT_SALE" | "PATENT_LICENSE" | "B2B_LOAN"
-export type ContractStatus = "AWAITING" | "FINALIZED"
+/** COUNTERED = superseded by a counter-offer; REJECTED = declined and the thread was closed. */
+export type ContractStatus = "AWAITING" | "FINALIZED" | "COUNTERED" | "REJECTED"
 
 export interface Contract {
   id: string
@@ -69,6 +70,11 @@ export interface Contract {
   status: ContractStatus
   createdAt: number
   finalizedAt?: number
+  /** The proposal this one counters, forming a revision chain. */
+  parentId?: string
+  revision: number
+  finalizedByAdmin?: boolean
+  adminOverridden?: boolean
 }
 
 export interface Thread {
@@ -76,8 +82,13 @@ export interface Thread {
   listingId: string
   teamIds: [string, string]
   updatedAt: number
+  closed?: boolean
 }
 
+/**
+ * Free-text chat is intentionally not supported. Every feed entry is either a
+ * structured proposal (contract / MR offer) or a hub-generated system notice.
+ */
 export interface ChatMessage {
   id: string
   threadId: string
@@ -86,6 +97,48 @@ export interface ChatMessage {
   text: string
   at: number
   contractId?: string
+  mrOfferId?: string
+}
+
+export type MrOfferStatus = "OFFERED" | "ACCEPTED" | "DECLINED"
+
+export interface MrItem {
+  id: number
+  label: string
+  description: string
+}
+
+export const MR_ITEMS: MrItem[] = [
+  { id: 81, label: "MR Item #81", description: "Competitor pricing & sales volume by area" },
+  { id: 82, label: "MR Item #82", description: "Industry market share by product" },
+  { id: 85, label: "MR Item #85", description: "Area demand forecast for next period" },
+  { id: 88, label: "MR Item #88", description: "Competitor grade & R&D positioning" },
+]
+
+export interface MrOffer {
+  id: string
+  threadId: string
+  sellerId: string
+  buyerId: string
+  itemId: number
+  area: Region
+  /** Service-payment fee in $K. */
+  priceK: number
+  status: MrOfferStatus
+  createdAt: number
+}
+
+export const RATING_TAGS = ["Fair Pricing", "Fast Responder", "Reliable Partner", "Clear Terms", "Flexible"] as const
+export type RatingTag = (typeof RATING_TAGS)[number]
+
+export interface Rating {
+  id: string
+  contractId: string
+  fromId: string
+  toId: string
+  stars: number
+  tags: RatingTag[]
+  at: number
 }
 
 export interface Shipment {
@@ -104,8 +157,25 @@ export interface TeamStats {
   teamId: string
   reputation: number
   completed: number
-  /** 0–5 rating for meeting delivery and payment deadlines. */
-  promptness: number
+  /** Sum and count of 1–5 star partner ratings. */
+  ratingTotal: number
+  ratingCount: number
+  tagCounts: Partial<Record<RatingTag, number>>
+}
+
+export const averageRating = (s: TeamStats | undefined) => (s && s.ratingCount ? s.ratingTotal / s.ratingCount : 0)
+
+export function topTag(s: TeamStats | undefined): RatingTag | null {
+  if (!s) return null
+  let best: RatingTag | null = null
+  let max = 0
+  for (const [tag, n] of Object.entries(s.tagCounts) as [RatingTag, number][]) {
+    if (n > max) {
+      best = tag
+      max = n
+    }
+  }
+  return best
 }
 
 export type ActivityKind = "listing" | "deal" | "partnership" | "license" | "contract" | "announcement"
@@ -336,15 +406,17 @@ export const INITIAL_CONTRACTS: Contract[] = [
     ar2Pct: 20,
     status: "AWAITING",
     createdAt: SIM_START_SECONDS - 5,
+    revision: 1,
   },
 ]
 
 export const INITIAL_MESSAGES: ChatMessage[] = [
-  { id: "M-s1", threadId: SEED_THREAD_ID, from: "t18", text: "Hi Team 7 — we need Y4 for our Europe launch. Can you do 7,500 units?", at: SIM_START_SECONDS - 300 },
-  { id: "M-s2", threadId: SEED_THREAD_ID, from: "t07", text: "Yes, from beginning inventory. $152/unit, surface freight so it lands in P5.", at: SIM_START_SECONDS - 210 },
-  { id: "M-s3", threadId: SEED_THREAD_ID, from: "t18", text: "Meet at $150 with 50% cash now, the rest on A/R? Sending the formal contract.", at: SIM_START_SECONDS - 90 },
-  { id: "M-s4", threadId: SEED_THREAD_ID, from: "t18", text: "Formal trade contract submitted for signature.", at: SIM_START_SECONDS - 5, contractId: "C-0001" },
+  { id: "M-s1", threadId: SEED_THREAD_ID, from: "system", text: "Team 18 opened a structured negotiation on this listing.", at: SIM_START_SECONDS - 300 },
+  { id: "M-s2", threadId: SEED_THREAD_ID, from: "t18", text: "Proposal R1 submitted for signature.", at: SIM_START_SECONDS - 5, contractId: "C-0001" },
 ]
+
+export const INITIAL_MR_OFFERS: MrOffer[] = []
+export const INITIAL_RATINGS: Rating[] = []
 
 export const INITIAL_SHIPMENTS: Shipment[] = [
   { id: "S-1", sellerId: "t12", buyerId: "t03", product: "X", grade: 2, quantity: 6, mode: "AIR", region: "China" },
@@ -357,12 +429,18 @@ export const INITIAL_SHIPMENTS: Shipment[] = [
 export const INITIAL_STATS: Record<string, TeamStats> = Object.fromEntries(
   ACTIVE_TEAMS.map((t) => [
     t.id,
-    {
-      teamId: t.id,
-      reputation: 72 + ((t.number * 37) % 27),
-      completed: 1 + ((t.number * 5) % 11),
-      promptness: Math.round((3.2 + ((t.number * 13) % 19) / 10) * 10) / 10,
-    },
+    (() => {
+      const ratingCount = 1 + ((t.number * 5) % 11)
+      const avg = 3.2 + ((t.number * 13) % 19) / 10
+      return {
+        teamId: t.id,
+        reputation: 72 + ((t.number * 37) % 27),
+        completed: ratingCount,
+        ratingTotal: Math.round(avg * ratingCount * 10) / 10,
+        ratingCount,
+        tagCounts: { [RATING_TAGS[t.number % RATING_TAGS.length]]: 2 + (t.number % 4), [RATING_TAGS[(t.number * 3) % RATING_TAGS.length]]: 1 },
+      } satisfies TeamStats
+    })(),
   ]),
 )
 
