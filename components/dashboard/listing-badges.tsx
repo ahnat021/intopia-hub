@@ -1,0 +1,63 @@
+import { ArrowDownLeft, ArrowUpRight, FlaskConical, Handshake, type LucideIcon } from "lucide-react"
+import { cn } from "@/lib/utils"
+import type { ListingStatus, ListingType } from "@/lib/mock-data"
+
+const SHORT_TYPE_LABEL: Record<ListingType, string> = {
+  BUY: "Buy",
+  SELL: "Sell",
+  PARTNERSHIP: "Partnership",
+  RND: "R&D",
+}
+
+const STATUS_STYLES: Record<ListingStatus, string> = {
+  OPEN: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 ring-emerald-500/25",
+  NEGOTIATING: "bg-amber-500/15 text-amber-600 dark:text-amber-400 ring-amber-500/25",
+  URGENT: "bg-rose-500/15 text-rose-600 dark:text-rose-400 ring-rose-500/25",
+  CLOSED: "bg-slate-500/15 text-slate-600 dark:text-slate-400 ring-slate-500/25",
+}
+
+const STATUS_DOT: Record<ListingStatus, string> = {
+  OPEN: "bg-emerald-400",
+  NEGOTIATING: "bg-amber-400",
+  URGENT: "bg-rose-400",
+  CLOSED: "bg-slate-400",
+}
+
+export function StatusBadge({ status }: { status: ListingStatus }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-semibold tracking-wide ring-1 ring-inset",
+        STATUS_STYLES[status],
+      )}
+    >
+      <span aria-hidden className={cn("size-1.5 rounded-full", STATUS_DOT[status])} />
+      {status}
+    </span>
+  )
+}
+
+export const TYPE_META: Record<ListingType, { icon: LucideIcon; className: string }> = {
+  BUY: { icon: ArrowDownLeft, className: "text-sky-400 bg-sky-500/15" },
+  SELL: { icon: ArrowUpRight, className: "text-emerald-400 bg-emerald-500/15" },
+  PARTNERSHIP: { icon: Handshake, className: "text-violet-400 bg-violet-500/15" },
+  RND: { icon: FlaskConical, className: "text-amber-400 bg-amber-500/15" },
+}
+
+export function TypeIcon({ type, className }: { type: ListingType; className?: string }) {
+  const { icon: Icon, className: tone } = TYPE_META[type]
+  return (
+    <span aria-hidden className={cn("inline-flex size-6 shrink-0 items-center justify-center rounded-md", tone, className)}>
+      <Icon className="size-3.5" />
+    </span>
+  )
+}
+
+export function TypeLabel({ type }: { type: ListingType }) {
+  return (
+    <span className="inline-flex items-center gap-2 whitespace-nowrap text-sm">
+      <TypeIcon type={type} />
+      {SHORT_TYPE_LABEL[type]}
+    </span>
+  )
+}
