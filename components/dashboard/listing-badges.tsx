@@ -1,6 +1,6 @@
 import { ArrowDownLeft, ArrowUpRight, FlaskConical, Handshake, Plane, Ship, type LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { DeliveryMode, ListingStatus, ListingType } from "@/lib/mock-data"
+import type { DeliveryMode, ListingStatus, ListingType } from "@/lib/domain"
 
 const SHORT_TYPE_LABEL: Record<ListingType, string> = {
   BUY: "Buy",

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import { DELIVERY_INFO, PRODUCT_INFO, formatUSD, formatUnits, productCode } from "@/lib/intopia-rules"
-import { formatSimClock, teamLabel, type Contract, type ContractStatus } from "@/lib/mock-data"
+import { formatClock, teamLabel, type Contract, type ContractStatus } from "@/lib/domain"
 import { AiReviewer } from "./ai-reviewer"
 
 export const KIND_LABEL: Record<Contract["kind"], string> = {
@@ -50,7 +50,7 @@ function Signature({ teamId, signed, at }: { teamId: string; signed: boolean; at
       <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
         {signed ? <CheckCircle2 className="size-3 text-emerald-400" aria-hidden /> : <Clock className="size-3" aria-hidden />}
         {teamLabel(teamId)}
-        {signed && at ? ` · ${formatSimClock(at)}` : ""}
+        {signed && at ? ` · ${formatClock(at)}` : ""}
       </p>
     </div>
   )
@@ -69,13 +69,14 @@ interface Props {
   locked: boolean
   closed: boolean
   canRate: boolean
-  onFinalize: (contractId: string) => Contract | null
+  onFinalize: (contractId: string) => Promise<Contract | null>
   onCounter: (contract: Contract) => void
   onRate: (contract: Contract) => void
 }
 
 export function ContractCard({ contract, viewerId, locked, closed, canRate, onFinalize, onCounter, onRate }: Props) {
   const [reviewOpen, setReviewOpen] = useState(false)
+  const [signing, setSigning] = useState(false)
   const { status } = contract
   const finalized = status === "FINALIZED"
   const isRecipient = status === "AWAITING" && contract.counterpartyId === viewerId && !closed
@@ -84,14 +85,17 @@ export function ContractCard({ contract, viewerId, locked, closed, canRate, onFi
   const meta = STATUS_META[status]
   const inactive = status === "COUNTERED" || status === "REJECTED"
 
-  const confirm = () => {
-    const result = onFinalize(contract.id)
+  const confirm = async () => {
+    if (signing) return
+    setSigning(true)
+    const result = await onFinalize(contract.id)
+    setSigning(false)
     setReviewOpen(false)
     if (result) {
       celebrate()
       toast.success("Trade finalized & locked", { description: `${contract.id} · ${formatUSD(contract.totalValue)}` })
     } else {
-      toast.error("Unable to finalize", { description: "Contracts are locked for Period 4 processing." })
+      toast.error("Unable to finalize", { description: "The contract changed or trading is locked." })
     }
   }
 
@@ -160,7 +164,7 @@ export function ContractCard({ contract, viewerId, locked, closed, canRate, onFi
         {(status === "AWAITING" || finalized) && (
           <div className="flex gap-4">
             <Signature teamId={contract.initiatorId} signed at={contract.createdAt} />
-            <Signature teamId={contract.counterpartyId} signed={finalized} at={contract.finalizedAt} />
+            <Signature teamId={contract.counterpartyId} signed={finalized} at={contract.finalizedAt ?? undefined} />
           </div>
         )}
 

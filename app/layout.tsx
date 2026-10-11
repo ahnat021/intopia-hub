@@ -9,15 +9,15 @@ const geistSans = Geist({ subsets: ["latin"], variable: "--font-geist-sans" })
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" })
 
 export const metadata: Metadata = {
-  title: "Intopia Hub — B2B Marketplace & Contract Hub",
+  title: "Intopia Hub | B2B Marketplace & Contract Hub",
   description:
     "The B2B communication and contract hub for the Intopia simulation: live listings, structured negotiations, digital contracts and sportsmanship ratings.",
 }
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f5f7fb" },
-    { media: "(prefers-color-scheme: dark)", color: "#0b1324" },
+    { media: "(prefers-color-scheme: light)", color: "#f4f6fa" },
+    { media: "(prefers-color-scheme: dark)", color: "#1b2230" },
   ],
   width: "device-width",
   initialScale: 1,
@@ -30,8 +30,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
           <Image src="/images/globe-network.png" alt="" fill priority sizes="100vw" className="hub-backdrop object-cover object-top" />
         </div>
-        <TeamMarquee />
-        <Providers>{children}</Providers>
+        <Providers>
+          <TeamMarquee />
+          {children}
+        </Providers>
       </body>
     </html>
   )

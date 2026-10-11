@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useHub } from "@/lib/hub-store"
 import { PRICE_BOUNDS, averageCost, formatUSD } from "@/lib/intopia-rules"
-import type { AiReview, Contract } from "@/lib/mock-data"
+import type { AiReview, Contract } from "@/lib/domain"
 
 export const PLATFORM_FEE_RATE = 0.01
 

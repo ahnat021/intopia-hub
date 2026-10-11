@@ -10,7 +10,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import { useDebouncedValue } from "@/hooks/use-debounced-value"
 import { GRADES, OPERATING_AREAS, PRODUCT_INFO, formatUnits } from "@/lib/intopia-rules"
-import { teamLabel, type Listing, type ListingType } from "@/lib/mock-data"
+import { teamLabel, type Listing, type ListingType } from "@/lib/domain"
 import { DeliveryLabel, StatusBadge, TypeLabel } from "./listing-badges"
 
 const PAGE_SIZE = 8

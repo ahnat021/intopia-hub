@@ -25,7 +25,7 @@ import {
   type Product,
   type Region,
 } from "@/lib/intopia-rules"
-import type { Contract, ContractKind, Listing, Team } from "@/lib/mock-data"
+import type { Contract, ContractKind, Listing, Team } from "@/lib/domain"
 import type { ContractDraft } from "@/lib/hub-store"
 
 const KIND_OPTIONS: { value: ContractKind; label: string }[] = [
@@ -75,7 +75,7 @@ export function ContractForm({ listing, threadId, viewer, counterparty, locked, 
   const [quantity, setQuantity] = useState(initial?.quantity ? String(initial.quantity) : listing.quantity ? String(listing.quantity) : "")
   const [price, setPrice] = useState(initial?.unitPrice ? String(initial.unitPrice) : listing.unitPrice ? String(listing.unitPrice) : "")
   const [delivery, setDelivery] = useState<DeliveryMode>(initial?.delivery ?? listing.delivery ?? "SURFACE")
-  const [region, setRegion] = useState<Region>(initial?.region ?? (listing.region === "Home Office" ? counterparty.region : listing.region))
+  const [region, setRegion] = useState<Region>(initial?.region ?? (listing.region === "Home Office" ? (counterparty.region ?? viewer.region ?? "North America") : listing.region))
   const [source, setSource] = useState<InventorySource>("BEGINNING")
   const [fee, setFee] = useState(initial?.kind === "PATENT_LICENSE" ? String(initial.totalValue / 1000) : "")
   const [principal, setPrincipal] = useState(initial?.kind === "B2B_LOAN" ? String(initial.totalValue / 1000) : "")
@@ -88,7 +88,7 @@ export function ContractForm({ listing, threadId, viewer, counterparty, locked, 
   const provider = providerId === viewer.id ? viewer : counterparty
   const qty = Number(quantity)
   const unitPrice = Number(price)
-  const loanCapK = maxIntercompanyLoan(provider.equity)
+  const loanCapK = maxIntercompanyLoan(provider.equity ?? 0)
   const termValues = { cash: Number(terms.cash), ar1: Number(terms.ar1), ar2: Number(terms.ar2) }
   const termSum = termValues.cash + termValues.ar1 + termValues.ar2
 

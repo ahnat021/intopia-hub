@@ -4,7 +4,7 @@ import { FileSignature, Lock, PenLine } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { formatCompactUSD } from "@/lib/intopia-rules"
-import { teamLabel, type Contract } from "@/lib/mock-data"
+import { teamLabel, type Contract } from "@/lib/domain"
 
 const KIND: Record<Contract["kind"], string> = { PRODUCT_SALE: "Sale", PATENT_LICENSE: "License", B2B_LOAN: "Loan" }
 

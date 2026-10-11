@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import type { ContractOverride } from "@/lib/hub-store"
-import type { Contract } from "@/lib/mock-data"
+import type { Contract } from "@/lib/domain"
 import { formatUSD } from "@/lib/intopia-rules"
 
 type Fields = Record<keyof ContractOverride, string>

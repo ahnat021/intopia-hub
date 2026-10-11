@@ -19,10 +19,9 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
-  ANNOUNCEMENTS,
-  TEAM_BY_ID,
-  TOP_PARTNERS,
-  formatSimClock,
+  type Announcement,
+  type Contract,
+  formatClock,
   teamLabel,
   type ActivityKind,
   type ActivityLog,
@@ -31,7 +30,8 @@ import {
   type TeamStats,
   averageRating,
   topTag,
-} from "@/lib/mock-data"
+} from "@/lib/domain"
+import { formatCompactUSD } from "@/lib/intopia-rules"
 
 function Panel({
   title,
@@ -177,7 +177,7 @@ export const ActivityFeed = memo(function ActivityFeed({ activity }: { activity:
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-pretty text-sm leading-snug">{a.message}</p>
-                <time className="font-mono text-[11px] text-muted-foreground">{formatSimClock(a.at)}</time>
+                <time className="font-mono text-[11px] text-muted-foreground">{formatClock(a.at)}</time>
               </div>
             </li>
           )
@@ -189,27 +189,31 @@ export const ActivityFeed = memo(function ActivityFeed({ activity }: { activity:
 
 const TAG_STYLE: Record<AnnouncementTag, string> = {
   Official: "bg-primary/15 text-primary ring-primary/30",
-  Reminder: "bg-amber-500/15 text-amber-400 ring-amber-500/30",
-  Community: "bg-violet-500/15 text-violet-400 ring-violet-500/30",
+  Reminder: "bg-warning/15 text-warning ring-warning/30",
+  Community: "bg-gold/15 text-gold ring-gold/30",
 }
 
-export function Announcements() {
+export function Announcements({ announcements }: { announcements: Announcement[] }) {
   return (
     <Panel title="Announcements" icon={Megaphone}>
-      <ul className="divide-y divide-border">
-        {ANNOUNCEMENTS.map((n) => (
-          <li key={n.id} className="px-4 py-3">
-            <div className="mb-1 flex items-center justify-between gap-2">
-              <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ring-1 ring-inset", TAG_STYLE[n.tag])}>
-                {n.tag}
-              </span>
-              <time className="font-mono text-[11px] text-muted-foreground">{formatSimClock(n.at)}</time>
-            </div>
-            <p className="text-sm font-medium">{n.title}</p>
-            <p className="text-pretty text-xs leading-relaxed text-muted-foreground">{n.body}</p>
-          </li>
-        ))}
-      </ul>
+      {announcements.length === 0 ? (
+        <p className="px-4 py-6 text-center text-sm text-muted-foreground">No announcements from the facilitator yet.</p>
+      ) : (
+        <ul className="divide-y divide-border">
+          {announcements.map((n) => (
+            <li key={n.id} className="px-4 py-3">
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ring-1 ring-inset", TAG_STYLE[n.tag])}>
+                  {n.tag}
+                </span>
+                <time className="font-mono text-[11px] text-muted-foreground">{formatClock(n.at)}</time>
+              </div>
+              <p className="text-sm font-medium">{n.title}</p>
+              <p className="text-pretty text-xs leading-relaxed text-muted-foreground">{n.body}</p>
+            </li>
+          ))}
+        </ul>
+      )}
     </Panel>
   )
 }
@@ -271,32 +275,38 @@ export function Leaderboard({ stats, viewerId }: { stats: Record<string, TeamSta
   )
 }
 
-export function TopPartners() {
+export function TopPartners({ contracts }: { contracts: Contract[] }) {
+  const pairs = useMemo(() => {
+    const byPair = new Map<string, { teams: [string, string]; deals: number; volume: number }>()
+    for (const c of contracts) {
+      if (c.status !== "FINALIZED") continue
+      const teams = [c.initiatorId, c.counterpartyId].sort() as [string, string]
+      const key = teams.join("-")
+      const entry = byPair.get(key) ?? { teams, deals: 0, volume: 0 }
+      entry.deals += 1
+      entry.volume += c.totalValue
+      byPair.set(key, entry)
+    }
+    return [...byPair.values()].sort((x, y) => y.volume - x.volume).slice(0, 3)
+  }, [contracts])
+
   return (
     <Panel title="Top Partners" icon={Award}>
-      <ul className="divide-y divide-border">
-        {TOP_PARTNERS.map((p) => (
-          <li key={p.id} className="flex items-center justify-between gap-3 px-4 py-3">
-            <div className="flex items-center gap-2">
-              <div className="flex -space-x-1">
-                {p.teams.map((t) => (
-                  <span
-                    key={t}
-                    className="flex size-9 items-center justify-center rounded-full bg-primary/20 font-mono text-[10px] font-bold text-primary ring-2 ring-card"
-                  >
-                    {teamLabel(t)}
-                  </span>
-                ))}
+      {pairs.length === 0 ? (
+        <p className="px-4 py-6 text-center text-sm text-muted-foreground">Partnerships appear once contracts are finalized.</p>
+      ) : (
+        <ul className="divide-y divide-border">
+          {pairs.map((p) => (
+            <li key={p.teams.join("-")} className="flex items-center justify-between gap-3 px-4 py-3">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="truncate text-sm font-medium">{p.teams.map(teamLabel).join(" & ")}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">{p.deals} deals</span>
               </div>
-              <span className="sr-only">
-                {p.teams.map((t) => TEAM_BY_ID[t]?.name).join(" and ")}
-              </span>
-              <span className="text-xs text-muted-foreground">{p.deals} deals</span>
-            </div>
-            <span className="font-mono text-sm font-semibold tabular-nums text-emerald-400">{p.volume}</span>
-          </li>
-        ))}
-      </ul>
+              <span className="font-mono text-sm font-semibold tabular-nums text-success">{formatCompactUSD(p.volume)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </Panel>
   )
 }

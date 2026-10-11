@@ -4,50 +4,58 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --radius: 0.75rem;
-  --background: oklch(0.975 0.006 255);
-  --foreground: oklch(0.21 0.03 262);
-  --card: oklch(0.995 0.002 255);
-  --card-foreground: oklch(0.21 0.03 262);
-  --popover: oklch(0.995 0.002 255);
-  --popover-foreground: oklch(0.21 0.03 262);
-  --primary: oklch(0.55 0.19 258);
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.945 0.012 255);
-  --secondary-foreground: oklch(0.27 0.03 262);
-  --muted: oklch(0.95 0.01 255);
-  --muted-foreground: oklch(0.48 0.03 258);
-  --accent: oklch(0.93 0.018 255);
-  --accent-foreground: oklch(0.21 0.03 262);
-  --destructive: oklch(0.56 0.21 25);
-  --border: oklch(0.89 0.015 255);
-  --input: oklch(0.87 0.017 255);
-  --ring: oklch(0.55 0.19 258);
-  --success: oklch(0.56 0.14 160);
-  --backdrop-opacity: 0.09;
+  --radius: 0.625rem;
+  --background: oklch(0.972 0.006 250);
+  --foreground: oklch(0.23 0.045 260);
+  --card: oklch(0.995 0.002 250);
+  --card-foreground: oklch(0.23 0.045 260);
+  --popover: oklch(0.995 0.002 250);
+  --popover-foreground: oklch(0.23 0.045 260);
+  --primary: oklch(0.32 0.085 262);
+  --primary-foreground: oklch(0.985 0.004 250);
+  --secondary: oklch(0.94 0.012 250);
+  --secondary-foreground: oklch(0.27 0.05 260);
+  --muted: oklch(0.945 0.01 250);
+  --muted-foreground: oklch(0.47 0.035 258);
+  --accent: oklch(0.925 0.02 250);
+  --accent-foreground: oklch(0.23 0.045 260);
+  --destructive: oklch(0.55 0.2 25);
+  --border: oklch(0.885 0.016 250);
+  --input: oklch(0.86 0.018 250);
+  --ring: oklch(0.32 0.085 262);
+  --success: oklch(0.52 0.13 160);
+  --warning: oklch(0.6 0.15 65);
+  --gold: oklch(0.6 0.12 78);
+  --gold-bright: oklch(0.8 0.14 85);
+  --gold-foreground: oklch(0.22 0.04 70);
+  --backdrop-opacity: 0.07;
 }
 
 .dark {
-  --background: oklch(0.155 0.028 262);
-  --foreground: oklch(0.965 0.008 255);
-  --card: oklch(0.195 0.033 262);
-  --card-foreground: oklch(0.965 0.008 255);
-  --popover: oklch(0.21 0.035 262);
-  --popover-foreground: oklch(0.965 0.008 255);
-  --primary: oklch(0.64 0.185 256);
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.25 0.035 262);
-  --secondary-foreground: oklch(0.93 0.01 255);
-  --muted: oklch(0.235 0.03 262);
-  --muted-foreground: oklch(0.7 0.03 258);
-  --accent: oklch(0.265 0.04 262);
-  --accent-foreground: oklch(0.97 0.008 255);
-  --destructive: oklch(0.64 0.21 22);
-  --border: oklch(0.29 0.035 262);
-  --input: oklch(0.3 0.035 262);
-  --ring: oklch(0.64 0.185 256);
-  --success: oklch(0.74 0.16 160);
-  --backdrop-opacity: 0.16;
+  --background: oklch(0.215 0.016 255);
+  --foreground: oklch(0.955 0.006 250);
+  --card: oklch(0.255 0.018 255);
+  --card-foreground: oklch(0.955 0.006 250);
+  --popover: oklch(0.27 0.02 255);
+  --popover-foreground: oklch(0.955 0.006 250);
+  --primary: oklch(0.78 0.075 250);
+  --primary-foreground: oklch(0.2 0.035 260);
+  --secondary: oklch(0.3 0.02 255);
+  --secondary-foreground: oklch(0.92 0.008 250);
+  --muted: oklch(0.29 0.018 255);
+  --muted-foreground: oklch(0.72 0.02 252);
+  --accent: oklch(0.32 0.024 255);
+  --accent-foreground: oklch(0.96 0.006 250);
+  --destructive: oklch(0.66 0.19 22);
+  --border: oklch(0.345 0.02 255);
+  --input: oklch(0.36 0.022 255);
+  --ring: oklch(0.78 0.075 250);
+  --success: oklch(0.74 0.14 160);
+  --warning: oklch(0.8 0.14 75);
+  --gold: oklch(0.82 0.13 85);
+  --gold-bright: oklch(0.88 0.14 90);
+  --gold-foreground: oklch(0.24 0.04 70);
+  --backdrop-opacity: 0.1;
 }
 
 /*
@@ -95,6 +103,10 @@ html:not(.dark) {
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-gold: var(--gold);
+  --color-gold-bright: var(--gold-bright);
+  --color-gold-foreground: var(--gold-foreground);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -159,5 +171,45 @@ html:not(.dark) .hub-backdrop {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* Team 25 operator styling: a rotating gold ring marks the hub's operating team everywhere it appears. */
+@property --operator-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.operator-ring {
+  position: relative;
+  border-radius: 9999px;
+  padding: 3px;
+  background: conic-gradient(from var(--operator-angle), var(--gold), var(--gold-bright), var(--gold), color-mix(in oklch, var(--gold) 40%, transparent), var(--gold));
+  box-shadow: 0 0 0 1px color-mix(in oklch, var(--gold) 50%, transparent), 0 0 22px color-mix(in oklch, var(--gold) 45%, transparent);
+  animation: operator-spin 6s linear infinite;
+}
+
+.operator-chip {
+  background: linear-gradient(135deg, var(--gold-bright), var(--gold));
+  color: var(--gold-foreground);
+  box-shadow: 0 0 0 1px color-mix(in oklch, var(--gold) 60%, transparent);
+}
+
+.operator-panel {
+  border: 1px solid color-mix(in oklch, var(--gold) 55%, transparent);
+  background: color-mix(in oklch, var(--gold) 9%, transparent);
+  box-shadow: inset 0 0 24px color-mix(in oklch, var(--gold) 12%, transparent);
+}
+
+@keyframes operator-spin {
+  to {
+    --operator-angle: 360deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .operator-ring {
+    animation: none;
   }
 }
