@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react"
 import Link from "next/link"
 import { ArrowLeft, KeyRound, Loader2, MailCheck, ShieldCheck } from "lucide-react"
+import { toast } from "sonner"
 import { BrandMark } from "@/components/brand-mark"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -59,9 +60,16 @@ function SignInForm() {
     e.preventDefault()
     setBusy(true)
     setError(null)
-    const result = await adminSignIn(email, password)
-    setBusy(false)
-    if (!result.ok) setError(result.error)
+    try {
+      const result = await adminSignIn(email, password)
+      if (!result.ok) setError(result.error)
+    } catch (error) {
+      const message = `Admin sign-in failed: ${error instanceof Error ? error.message : "server error"}`
+      setError(message)
+      toast.error(message)
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
@@ -108,10 +116,15 @@ function SetupForm() {
         body: JSON.stringify({ email, purpose: "admin-setup" }),
       })
       const body = (await res.json().catch(() => ({}))) as { error?: string }
-      if (!res.ok) setError(body.error ?? "Could not send the code.")
-      else setStep("code")
-    } catch {
-      setError("Network error. Try again.")
+      if (!res.ok) {
+        const message = body.error ?? `Could not send the code (HTTP ${res.status}).`
+        setError(message)
+        toast.error(message)
+      } else setStep("code")
+    } catch (error) {
+      const message = `Network error: ${error instanceof Error ? error.message : "request failed"}`
+      setError(message)
+      toast.error(message)
     } finally {
       setBusy(false)
     }
@@ -125,9 +138,16 @@ function SetupForm() {
     }
     setBusy(true)
     setError(null)
-    const result = await completeAdminSetup(email, code, password)
-    setBusy(false)
-    if (!result.ok) setError(result.error)
+    try {
+      const result = await completeAdminSetup(email, code, password)
+      if (!result.ok) setError(result.error)
+    } catch (error) {
+      const message = `Admin setup failed: ${error instanceof Error ? error.message : "server error"}`
+      setError(message)
+      toast.error(message)
+    } finally {
+      setBusy(false)
+    }
   }
 
   if (step === "email") {

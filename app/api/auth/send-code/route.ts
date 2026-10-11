@@ -7,7 +7,25 @@ const RESEND_COOLDOWN_MS = 60 * 1000
 const HOURLY_LIMIT = 5
 
 export async function POST(request: Request) {
-  if (!isSupabaseConfigured()) return NextResponse.json({ error: "The hub database is not connected yet." }, { status: 503 })
+  console.log("[intopia:send-code] env check", {
+    supabaseConfigured: isSupabaseConfigured(),
+    hasResendKey: !!process.env.RESEND_API_KEY,
+  })
+  if (!isSupabaseConfigured())
+    return NextResponse.json(
+      { error: "Database not configured: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing on the server." },
+      { status: 503 },
+    )
+  try {
+    return await handle(request)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    console.error("[intopia:send-code] unhandled error:", message)
+    return NextResponse.json({ error: `Unexpected server error: ${message}` }, { status: 500 })
+  }
+}
+
+async function handle(request: Request) {
 
   const body = (await request.json().catch(() => null)) as { email?: unknown; purpose?: unknown } | null
   const email = typeof body?.email === "string" ? normalizeEmail(body.email) : ""
@@ -16,33 +34,47 @@ export async function POST(request: Request) {
   if (purpose !== "team-register" && purpose !== "admin-setup") return NextResponse.json({ error: "Invalid request." }, { status: 400 })
 
   if (purpose === "admin-setup") {
-    const { count } = await db().from("admin_account").select("id", { count: "exact", head: true })
+    const { count, error: adminError } = await db().from("admin_account").select("id", { count: "exact", head: true })
+    if (adminError) return dbFailure("admin_account lookup", adminError.message)
     if (count) return NextResponse.json({ error: "The administrator account is already set up." }, { status: 409 })
     const allowed = process.env.ADMIN_EMAIL && normalizeEmail(process.env.ADMIN_EMAIL)
     if (allowed && allowed !== email) return NextResponse.json({ error: "This email is not authorized to administer the hub." }, { status: 403 })
   } else {
-    const { data: taken } = await db().from("teams").select("id").eq("email", email).maybeSingle()
+    const { data: taken, error: teamsError } = await db().from("teams").select("id").eq("email", email).maybeSingle()
+    if (teamsError) return dbFailure("teams lookup", teamsError.message)
     if (taken) return NextResponse.json({ error: "This email is already linked to a team." }, { status: 409 })
   }
 
-  const { data: recent } = await db()
+  const { data: recent, error: otpLookupError } = await db()
     .from("email_otps")
     .select("createdAt")
     .eq("email", email)
     .eq("purpose", purpose as OtpPurpose)
     .gte("createdAt", Date.now() - 60 * 60 * 1000)
     .order("createdAt", { ascending: false })
+  if (otpLookupError) return dbFailure("email_otps lookup", otpLookupError.message)
   if (recent?.[0] && Date.now() - recent[0].createdAt < RESEND_COOLDOWN_MS)
     return NextResponse.json({ error: "Please wait a minute before requesting another code." }, { status: 429 })
   if ((recent?.length ?? 0) >= HOURLY_LIMIT)
     return NextResponse.json({ error: "Too many codes requested. Try again in an hour." }, { status: 429 })
 
+  let code: string
   try {
-    const code = await issueOtp(email, purpose)
+    code = await issueOtp(email, purpose)
+  } catch (error) {
+    return dbFailure("email_otps insert", error instanceof Error ? error.message : String(error))
+  }
+  try {
     await sendVerificationCode(email, code, purpose)
   } catch (error) {
-    console.error("[intopia] verification email failed:", error instanceof Error ? error.message : error)
-    return NextResponse.json({ error: "We couldn't send the code. Please try again shortly." }, { status: 502 })
+    const message = error instanceof Error ? error.message : String(error)
+    console.error("[intopia:send-code] verification email failed:", message)
+    return NextResponse.json({ error: `Failed to send email: ${message}` }, { status: 502 })
   }
   return NextResponse.json({ ok: true })
+}
+
+function dbFailure(step: string, message: string) {
+  console.error(`[intopia:send-code] Supabase ${step} failed:`, message)
+  return NextResponse.json({ error: `Database error (${step}): ${message}` }, { status: 500 })
 }

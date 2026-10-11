@@ -47,9 +47,14 @@ export async function requestCode(email: string, purpose: "team-register" | "adm
       body: JSON.stringify({ email, purpose }),
     })
     const body = (await res.json().catch(() => ({}))) as { error?: string }
-    return res.ok ? null : (body.error ?? "We couldn't send the code.")
-  } catch {
-    return "Network error. Please try again."
+    if (res.ok) return null
+    const message = body.error ?? `We couldn't send the code (HTTP ${res.status}).`
+    toast.error(message)
+    return message
+  } catch (error) {
+    const message = `Network error: ${error instanceof Error ? error.message : "request failed"}`
+    toast.error(message)
+    return message
   }
 }
 
@@ -64,10 +69,16 @@ function ReturningForm({ teamId }: { teamId: string }) {
     e.preventDefault()
     if (!PIN_RE.test(pin)) return setError("Enter your 4-digit PIN.")
     startTransition(async () => {
-      const result = await signIn(teamId, pin)
-      if (!result.ok) {
-        setError(result.error)
-        setPin("")
+      try {
+        const result = await signIn(teamId, pin)
+        if (!result.ok) {
+          setError(result.error)
+          setPin("")
+        }
+      } catch (error) {
+        const message = `Sign-in failed: ${error instanceof Error ? error.message : "server error"}`
+        setError(message)
+        toast.error(message)
       }
     })
   }
@@ -133,7 +144,14 @@ function SetupForm({ teamId }: { teamId: string }) {
   const verify = (e: FormEvent) => {
     e.preventDefault()
     startTransition(async () => {
-      const result = await register({ teamId, company: company.trim(), region, whatsapp: whatsapp.trim(), email: email.trim(), pin, code })
+      let result: Awaited<ReturnType<typeof register>>
+      try {
+        result = await register({ teamId, company: company.trim(), region, whatsapp: whatsapp.trim(), email: email.trim(), pin, code })
+      } catch (error) {
+        const message = `Registration failed: ${error instanceof Error ? error.message : "server error"}`
+        toast.error(message)
+        return setError(message)
+      }
       if (!result.ok) return setError(result.error)
       toast.success("Email verified", { description: "Your registration is now in the KYC review queue." })
     })
