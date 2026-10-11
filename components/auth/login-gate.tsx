@@ -2,7 +2,9 @@
 
 import { useState, useTransition, type FormEvent } from "react"
 import Image from "next/image"
-import { ArrowLeft, Ban, Crown, KeyRound, Loader2, Lock, Mail, RotateCw, ShieldCheck } from "lucide-react"
+import Link from "next/link"
+import { ArrowLeft, Ban, Crown, KeyRound, Languages, Loader2, Lock, Mail, RotateCw, ShieldCheck } from "lucide-react"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -248,7 +250,7 @@ function SetupForm({ teamId }: { teamId: string }) {
 export function LoginGate() {
   const { isRegistered } = useAuth()
   const { teams, teamById, approvedIds, kycQueue, settings, configured } = useHub()
-  const { t } = useI18n()
+  const { t, locale, toggle } = useI18n()
   const [selected, setSelected] = useState<string | null>(null)
   const team = selected ? teamById[selected] : null
   const pendingCount = teams.filter((x) => x.kyc === "pending").length || kycQueue.length
@@ -257,6 +259,20 @@ export function LoginGate() {
     <main className="relative flex min-h-dvh items-center justify-center overflow-hidden px-4 py-10">
       <Image src="/images/globe-network.png" alt="" fill priority sizes="100vw" className="pointer-events-none object-cover opacity-20" />
       <div aria-hidden className="pointer-events-none absolute inset-0 bg-background/75" />
+
+      <nav aria-label="Preferences" className="absolute top-4 right-4 z-10 flex items-center gap-2">
+        <Button variant="outline" size="sm" onClick={toggle} aria-label={t("lang.switch")}>
+          <Languages aria-hidden />
+          {locale === "en" ? "FR" : "EN"}
+        </Button>
+        <ThemeToggle />
+        <Button variant="outline" size="sm" asChild>
+          <Link href="/admin">
+            <ShieldCheck aria-hidden />
+            {t("nav.adminPortal")}
+          </Link>
+        </Button>
+      </nav>
 
       <div className="relative grid w-full max-w-4xl overflow-hidden rounded-2xl border border-border bg-card/95 shadow-2xl shadow-primary/10 backdrop-blur md:grid-cols-[1.1fr_1fr]">
         <section aria-labelledby="pick-team" className="flex flex-col gap-5 border-b border-border p-6 sm:p-8 md:border-r md:border-b-0">

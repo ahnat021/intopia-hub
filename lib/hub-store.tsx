@@ -5,6 +5,7 @@ import useSWR from "swr"
 import { toast } from "sonner"
 import * as actions from "@/lib/actions/hub-actions"
 import {
+  fullRoster,
   setTeamRegistry,
   threadIdFor,
   type ActivityLog,
@@ -81,8 +82,10 @@ export function HubProvider({ children, initial }: { children: ReactNode; initia
     keepPreviousData: true,
   })
 
-  const snapshot = data ?? EMPTY_SNAPSHOT
-  setTeamRegistry(snapshot.teams)
+  const raw = data ?? EMPTY_SNAPSHOT
+  const teams = useMemo(() => fullRoster(raw.teams), [raw.teams])
+  const snapshot = useMemo(() => ({ ...raw, teams }), [raw, teams])
+  setTeamRegistry(teams)
 
   /** Rows that appeared since the previous poll get a one-time highlight. */
   const { listings, activity } = useMemo(() => {

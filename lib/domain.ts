@@ -260,6 +260,30 @@ export const isOperator = (teamId: string | null | undefined) => teamId === OPER
  */
 export const TEAM_BY_ID: Record<string, Team> = {}
 
+/** The 75 seats always exist; live rows overlay registration status onto them. */
+export function fullRoster(teams: Team[]): Team[] {
+  const byId = new Map(teams.map((t) => [t.id, t]))
+  return Array.from({ length: TEAM_COUNT }, (_, i) => {
+    const id = teamIdFor(i + 1)
+    return (
+      byId.get(id) ?? {
+        id,
+        number: i + 1,
+        name: `Team ${i + 1}`,
+        company: null,
+        region: null,
+        whatsapp: null,
+        email: null,
+        equity: null,
+        kyc: "unregistered",
+        certified: false,
+        banned: false,
+        registeredAt: null,
+      }
+    )
+  })
+}
+
 export function setTeamRegistry(teams: Team[]) {
   for (const t of teams) TEAM_BY_ID[t.id] = t
 }
