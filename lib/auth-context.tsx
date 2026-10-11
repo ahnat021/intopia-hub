@@ -61,7 +61,7 @@ export const isBankrupt = (teamId: string) => (TEAM_BY_ID[teamId]?.equity ?? 0) 
 const AuthContext = createContext<AuthValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { bannedIds } = useHub()
+  const { bannedIds, submitKyc } = useHub()
   const [status, setStatus] = useState<AuthStatus>("loading")
   const [accounts, setAccounts] = useState<Record<string, TeamAccount>>(DEMO_ACCOUNTS)
   const [teamId, setTeamId] = useState<string | null>(null)
@@ -96,9 +96,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         writeStorage(ACCOUNTS_KEY, next)
         return next
       })
+      submitKyc(account.teamId, account.email)
       startSession(account)
     },
-    [startSession],
+    [startSession, submitKyc],
   )
 
   const signIn = useCallback(

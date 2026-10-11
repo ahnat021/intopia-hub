@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next"
 import Image from "next/image"
 import { Geist, Geist_Mono } from "next/font/google"
 import { Providers } from "@/components/providers"
+import { TeamMarquee } from "@/components/team-marquee"
 import "./globals.css"
 
 const geistSans = Geist({ subsets: ["latin"], variable: "--font-geist-sans" })
@@ -29,6 +30,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
           <Image src="/images/globe-network.png" alt="" fill priority sizes="100vw" className="hub-backdrop object-cover object-top" />
         </div>
+        <TeamMarquee />
         <Providers>{children}</Providers>
       </body>
     </html>

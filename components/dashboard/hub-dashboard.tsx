@@ -1,7 +1,8 @@
 "use client"
 
 import { useCallback, useMemo, useState } from "react"
-import { Compass, Lock } from "lucide-react"
+import { BadgeCheck, Compass, GraduationCap, Lock } from "lucide-react"
+import { TrainingHub } from "./training-hub"
 import { OnboardingTour, useFirstVisitTour } from "./onboarding-tour"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
@@ -26,8 +27,9 @@ export function HubDashboard() {
   const { listings, threads, contracts, lockedOut, setLockedOut, openThread, postListing } = hub
   const [session, setSession] = useState<{ listingId: string; threadId: string | null } | null>(null)
   const [tourOpen, setTourOpen] = useFirstVisitTour()
-
   const viewerId = team!.id
+  const certified = hub.certifiedIds.includes(viewerId)
+  const [trainingOpen, setTrainingOpen] = useState(!certified)
   const activeListing = session ? (listings.find((l) => l.id === session.listingId) ?? null) : null
 
   const contractListingIds = useMemo(
@@ -66,13 +68,30 @@ export function HubDashboard() {
   return (
     <div className="min-h-dvh">
       <TopBar team={team} lockedOut={lockedOut} onSignOut={signOut}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setTrainingOpen(true)}
+          className={certified ? "text-success hover:text-success" : "text-warning hover:text-warning"}
+        >
+          {certified ? <BadgeCheck aria-hidden /> : <GraduationCap aria-hidden />}
+          <span className="hidden md:inline">{certified ? "Training Certified" : "Training required"}</span>
+          <span className="sr-only md:hidden">{certified ? "Training Certified" : "Open Training Hub"}</span>
+        </Button>
         <Button variant="ghost" size="sm" onClick={() => setTourOpen(true)}>
           <Compass aria-hidden />
           <span className="hidden md:inline">Tour</span>
           <span className="sr-only md:hidden">Replay tour</span>
         </Button>
         <RulebookSheet />
-        <PostListingDialog teamId={team.id} locked={lockedOut} onPost={postListing} />
+        {certified ? (
+          <PostListingDialog teamId={team.id} locked={lockedOut} onPost={postListing} />
+        ) : (
+          <Button size="sm" variant="outline" onClick={() => setTrainingOpen(true)}>
+            <Lock aria-hidden />
+            Post a Listing
+          </Button>
+        )}
       </TopBar>
       <HubHeader lockedOut={lockedOut} onToggleLockout={() => setLockedOut(!lockedOut)} />
 
@@ -130,7 +149,14 @@ export function HubDashboard() {
         onSelectThread={(threadId) => setSession((s) => (s ? { ...s, threadId } : s))}
         onClose={() => setSession(null)}
       />
-      <OnboardingTour open={tourOpen} onOpenChange={setTourOpen} />
+      <OnboardingTour open={tourOpen && certified && !trainingOpen} onOpenChange={setTourOpen} />
+      <TrainingHub
+        key={`${viewerId}-${certified}`}
+        open={trainingOpen}
+        onOpenChange={setTrainingOpen}
+        certified={certified}
+        onCertify={() => hub.certifyTraining(viewerId)}
+      />
     </div>
   )
 }

@@ -20,8 +20,12 @@ import {
   threadIdFor,
   type ActivityKind,
   type ActivityLog,
+  type AiReview,
   type ChatMessage,
   type Contract,
+  type Fine,
+  type FineReason,
+  type KycRequest,
   type Listing,
   type ListingType,
   type MrOffer,
@@ -73,6 +77,28 @@ interface HubValue {
   toggleBan: (teamId: string) => void
   adminAuthed: boolean
   setAdminAuthed: (v: boolean) => void
+  kycQueue: KycRequest[]
+  approvedIds: string[]
+  submitKyc: (teamId: string, email: string) => void
+  approveKyc: (teamId: string) => void
+  rejectKyc: (teamId: string) => void
+  certifiedIds: string[]
+  certifyTraining: (teamId: string) => void
+  fines: Fine[]
+  issueFine: (teamId: string, amountK: number, reason: FineReason) => void
+  aiReviews: Record<string, AiReview>
+  recordAiReview: (contractId: string, review: AiReview) => void
+  platformFeesUSD: number
+}
+
+/** Demo accounts are pre-verified and pre-trained so reviewers can jump straight in. */
+const PREAPPROVED_IDS = ["t07", "t18"]
+const ONBOARDING_KEY = "intopia-hub:onboarding:v1"
+
+interface OnboardingSnapshot {
+  kycQueue: KycRequest[]
+  approvedIds: string[]
+  certifiedIds: string[]
 }
 
 const HubContext = createContext<HubValue | null>(null)
@@ -100,6 +126,12 @@ export function HubProvider({ children }: { children: ReactNode }) {
   const [isLive, setIsLive] = useState(true)
   const [lockedOut, setLockedOut] = useState(false)
   const [adminAuthed, setAdminAuthed] = useState(false)
+  const [kycQueue, setKycQueue] = useState<KycRequest[]>([])
+  const [approvedIds, setApprovedIds] = useState<string[]>(PREAPPROVED_IDS)
+  const [certifiedIds, setCertifiedIds] = useState<string[]>(PREAPPROVED_IDS)
+  const [fines, setFines] = useState<Fine[]>([])
+  const [aiReviews, setAiReviews] = useState<Record<string, AiReview>>({})
+  const onboardingLoaded = useRef(false)
   const mountedAt = useRef<number | null>(null)
   const seq = useRef(0)
 
@@ -336,6 +368,69 @@ export function HubProvider({ children }: { children: ReactNode }) {
     [pushActivity],
   )
 
+  const submitKyc = useCallback(
+    (teamId: string, email: string) => {
+      setKycQueue((prev) => [...prev.filter((r) => r.teamId !== teamId), { teamId, email, at: simNow() }])
+    },
+    [simNow],
+  )
+
+  const approveKyc = useCallback(
+    (teamId: string) => {
+      setKycQueue((prev) => prev.filter((r) => r.teamId !== teamId))
+      setApprovedIds((prev) => (prev.includes(teamId) ? prev : [...prev, teamId]))
+      pushActivity("announcement", `${teamLabel(teamId)} passed KYC verification and joined the hub`)
+    },
+    [pushActivity],
+  )
+
+  const rejectKyc = useCallback((teamId: string) => {
+    setKycQueue((prev) => prev.filter((r) => r.teamId !== teamId))
+  }, [])
+
+  const certifyTraining = useCallback((teamId: string) => {
+    setCertifiedIds((prev) => (prev.includes(teamId) ? prev : [...prev, teamId]))
+  }, [])
+
+  const issueFine = useCallback(
+    (teamId: string, amountK: number, reason: FineReason) => {
+      setFines((prev) => [{ id: nextId("F"), teamId, amountK, reason, at: simNow() }, ...prev])
+      pushActivity("fine", `Regulatory fine: ${teamLabel(teamId)} fined ${formatCompactUSD(amountK * 1000)} for ${reason}`)
+    },
+    [nextId, pushActivity, simNow],
+  )
+
+  const recordAiReview = useCallback((contractId: string, review: AiReview) => {
+    setAiReviews((prev) => (prev[contractId] ? prev : { ...prev, [contractId]: review }))
+  }, [])
+
+  const platformFeesUSD = useMemo(() => Object.values(aiReviews).reduce((sum, r) => sum + r.feeUSD, 0), [aiReviews])
+
+  useEffect(() => {
+    try {
+      const raw = window.sessionStorage.getItem(ONBOARDING_KEY)
+      if (raw) {
+        const snap = JSON.parse(raw) as OnboardingSnapshot
+        setKycQueue(snap.kycQueue ?? [])
+        setApprovedIds(Array.from(new Set([...PREAPPROVED_IDS, ...(snap.approvedIds ?? [])])))
+        setCertifiedIds(Array.from(new Set([...PREAPPROVED_IDS, ...(snap.certifiedIds ?? [])])))
+      }
+    } catch {
+      // Storage unavailable: onboarding state stays in memory for this session.
+    }
+    onboardingLoaded.current = true
+  }, [])
+
+  useEffect(() => {
+    if (!onboardingLoaded.current) return
+    try {
+      const snap: OnboardingSnapshot = { kycQueue, approvedIds, certifiedIds }
+      window.sessionStorage.setItem(ONBOARDING_KEY, JSON.stringify(snap))
+    } catch {
+      // Ignore storage failures (private mode / sandboxed iframe).
+    }
+  }, [kycQueue, approvedIds, certifiedIds])
+
   useEffect(() => {
     simNow()
   }, [simNow])
@@ -371,12 +466,16 @@ export function HubProvider({ children }: { children: ReactNode }) {
       isLive, toggleLive, lockedOut, setLockedOut,
       postListing, openThread, draftContract, finalizeContract, rejectAndClose, proposeMr, respondMr, submitRating,
       adminApprove, adminDelete, adminOverride, toggleBan, adminAuthed, setAdminAuthed,
+      kycQueue, approvedIds, submitKyc, approveKyc, rejectKyc, certifiedIds, certifyTraining,
+      fines, issueFine, aiReviews, recordAiReview, platformFeesUSD,
     }),
     [
       listings, activity, threads, messages, contracts, mrOffers, ratings, shipments, stats, bannedIds,
       isLive, toggleLive, lockedOut,
       postListing, openThread, draftContract, finalizeContract, rejectAndClose, proposeMr, respondMr, submitRating,
       adminApprove, adminDelete, adminOverride, toggleBan, adminAuthed,
+      kycQueue, approvedIds, submitKyc, approveKyc, rejectKyc, certifiedIds, certifyTraining,
+      fines, issueFine, aiReviews, recordAiReview, platformFeesUSD,
     ],
   )
 

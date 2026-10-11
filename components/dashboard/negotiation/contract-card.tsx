@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { cn } from "@/lib/utils"
 import { DELIVERY_INFO, PRODUCT_INFO, formatUSD, formatUnits, productCode } from "@/lib/intopia-rules"
 import { formatSimClock, teamLabel, type Contract, type ContractStatus } from "@/lib/mock-data"
+import { AiReviewer } from "./ai-reviewer"
 
 export const KIND_LABEL: Record<Contract["kind"], string> = {
   PRODUCT_SALE: "Product Sale",
@@ -162,6 +163,8 @@ export function ContractCard({ contract, viewerId, locked, closed, canRate, onFi
             <Signature teamId={contract.counterpartyId} signed={finalized} at={contract.finalizedAt} />
           </div>
         )}
+
+        {(status === "AWAITING" || finalized) && <AiReviewer contract={contract} />}
 
         {isRecipient && (
           <div className="grid grid-cols-2 gap-2" data-tour="contract-actions">
