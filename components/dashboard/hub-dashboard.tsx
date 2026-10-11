@@ -1,13 +1,14 @@
 "use client"
 
 import { useCallback, useMemo, useState } from "react"
-import { BadgeCheck, Compass, GraduationCap, Lock } from "lucide-react"
-import { TrainingHub } from "./training-hub"
+import { BadgeCheck, Compass, Lock } from "lucide-react"
+import { RulesWaiver } from "./rules-waiver"
+import { ProfessorConsole } from "./professor-console"
 import { OnboardingTour, useFirstVisitTour } from "./onboarding-tour"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
 import { useHub } from "@/lib/hub-store"
-import { isBankrupt, type Contract, type Listing } from "@/lib/domain"
+import { isBankrupt, isProfessor, type Contract, type Listing } from "@/lib/domain"
 import { FeaturedOpportunities } from "./featured-opportunities"
 import { FreightTracker } from "./freight-tracker"
 import { HubHeader } from "./hub-header"
@@ -28,8 +29,7 @@ export function HubDashboard() {
   const [session, setSession] = useState<{ listingId: string; threadId: string | null } | null>(null)
   const [tourOpen, setTourOpen] = useFirstVisitTour()
   const viewerId = team!.id
-  const certified = hub.certifiedIds.includes(viewerId)
-  const [trainingOpen, setTrainingOpen] = useState(!certified)
+  const signed = hub.certifiedIds.includes(viewerId)
   const activeListing = session ? (listings.find((l) => l.id === session.listingId) ?? null) : null
 
   const contractListingIds = useMemo(
@@ -68,30 +68,20 @@ export function HubDashboard() {
   return (
     <div className="min-h-dvh">
       <TopBar team={team} onSignOut={() => void signOut()}>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setTrainingOpen(true)}
-          className={certified ? "text-success hover:text-success" : "text-warning hover:text-warning"}
-        >
-          {certified ? <BadgeCheck aria-hidden /> : <GraduationCap aria-hidden />}
-          <span className="hidden md:inline">{certified ? "Training Certified" : "Training required"}</span>
-          <span className="sr-only md:hidden">{certified ? "Training Certified" : "Open Training Hub"}</span>
-        </Button>
+        {signed && (
+          <span className="hidden items-center gap-1.5 px-2 text-sm text-success md:inline-flex">
+            <BadgeCheck className="size-4" aria-hidden />
+            Waiver signed
+          </span>
+        )}
+        {isProfessor(viewerId) && <ProfessorConsole />}
         <Button variant="ghost" size="sm" onClick={() => setTourOpen(true)}>
           <Compass aria-hidden />
           <span className="hidden md:inline">Tour</span>
           <span className="sr-only md:hidden">Replay tour</span>
         </Button>
         <RulebookSheet />
-        {certified ? (
-          <PostListingDialog teamId={team.id} locked={lockedOut} onPost={postListing} />
-        ) : (
-          <Button size="sm" variant="outline" onClick={() => setTrainingOpen(true)}>
-            <Lock aria-hidden />
-            Post a Listing
-          </Button>
-        )}
+        <PostListingDialog teamId={team.id} locked={lockedOut || !signed} onPost={postListing} />
       </TopBar>
       <HubHeader />
 
@@ -127,11 +117,11 @@ export function HubDashboard() {
         </div>
 
         <aside className="flex min-w-0 flex-col gap-4 lg:col-span-4 lg:gap-6" aria-label="Market insights">
+          <Announcements announcements={hub.announcements} />
           <MyContracts contracts={contracts} viewerId={viewerId} onOpen={openContract} />
           <Leaderboard stats={hub.stats} viewerId={viewerId} />
           <ActivityFeed activity={hub.activity} />
           <MarketPulse listings={listings} />
-          <Announcements announcements={hub.announcements} />
           <TopPartners contracts={contracts} />
         </aside>
       </main>
@@ -143,14 +133,8 @@ export function HubDashboard() {
         onSelectThread={(threadId) => setSession((s) => (s ? { ...s, threadId } : s))}
         onClose={() => setSession(null)}
       />
-      <OnboardingTour open={tourOpen && certified && !trainingOpen} onOpenChange={setTourOpen} />
-      <TrainingHub
-        key={`${viewerId}-${certified}`}
-        open={trainingOpen}
-        onOpenChange={setTrainingOpen}
-        certified={certified}
-        onCertify={() => void hub.certifyTraining()}
-      />
+      <OnboardingTour open={tourOpen && signed} onOpenChange={setTourOpen} />
+      <RulesWaiver teamName={team.name} open={!signed} onSign={hub.signWaiver} />
     </div>
   )
 }

@@ -1,17 +1,30 @@
-import "server-only"
+-- Intopia Hub database schema. Run manually in the Supabase SQL Editor.
+-- Every id / foreign key is TEXT so types always match (teams.id = 't01'..'t75').
+-- Tables are created strictly in dependency order: parents before children.
+-- RLS is enabled with no policies, so only the server (service role) can read/write.
 
-/**
- * Idempotent Intopia Hub schema, applied once per server boot from instrumentation.ts.
- * Columns are quoted camelCase so rows map 1:1 onto the TypeScript domain types.
- * RLS is enabled on every table with NO policies: only the service role can access data.
- */
-export const SCHEMA_SQL = /* sql */ `
+-- ---------------------------------------------------------------------------
+-- OPTIONAL RESET: "foreign key constraint ... cannot be implemented" happens
+-- when an older `teams` table already exists with a different id type (e.g.
+-- uuid). `create table if not exists` silently keeps that old table. If this
+-- is a fresh event database, uncomment this block to drop old tables first.
+-- WARNING: this deletes all data in these tables.
+-- ---------------------------------------------------------------------------
+-- drop table if exists
+--   public.ai_reviews, public.fines, public.announcements, public.activity,
+--   public.shipments, public.ratings, public.messages, public.mr_offers,
+--   public.contracts, public.threads, public.listings, public.hub_settings,
+--   public.email_otps, public.admin_account, public.team_credentials,
+--   public.teams
+-- cascade;
+
 create or replace function public.now_ms() returns bigint
 language sql stable set search_path = '' as $$ select (extract(epoch from now()) * 1000)::bigint $$;
 
+-- 1. teams (parent of almost everything)
 create table if not exists public.teams (
   "id" text primary key,
-  "number" int not null unique check ("number" between 1 and 75),
+  "number" int not null unique check ("number" between 0 and 75),
   "name" text not null,
   "company" text,
   "region" text check ("region" in ('North America', 'Europe', 'China')),
@@ -21,9 +34,17 @@ create table if not exists public.teams (
   "kyc" text not null default 'unregistered' check ("kyc" in ('unregistered', 'pending', 'approved', 'rejected')),
   "certified" boolean not null default false,
   "banned" boolean not null default false,
-  "registeredAt" bigint
+  "registeredAt" bigint,
+  "waiverName" text,
+  "waiverAt" bigint
 );
+-- Upgrades for databases created by an earlier version of this script.
+alter table public.teams add column if not exists "waiverName" text;
+alter table public.teams add column if not exists "waiverAt" bigint;
+alter table public.teams drop constraint if exists "teams_number_check";
+alter table public.teams add constraint "teams_number_check" check ("number" between 0 and 75);
 
+-- 2. team_credentials ("teamId" text -> teams.id text)
 create table if not exists public.team_credentials (
   "teamId" text primary key references public.teams("id") on delete cascade,
   "pinHash" text not null,
@@ -32,6 +53,7 @@ create table if not exists public.team_credentials (
   "createdAt" bigint not null default public.now_ms()
 );
 
+-- 3. admin_account (single row)
 create table if not exists public.admin_account (
   "id" int primary key default 1 check ("id" = 1),
   "email" text not null,
@@ -41,6 +63,7 @@ create table if not exists public.admin_account (
   "createdAt" bigint not null default public.now_ms()
 );
 
+-- 4. email_otps
 create table if not exists public.email_otps (
   "id" uuid primary key default gen_random_uuid(),
   "email" text not null,
@@ -53,14 +76,15 @@ create table if not exists public.email_otps (
 );
 create index if not exists email_otps_lookup on public.email_otps ("email", "purpose", "createdAt" desc);
 
+-- 5. hub_settings (single row)
 create table if not exists public.hub_settings (
   "id" int primary key default 1 check ("id" = 1),
   "period" text not null default 'P1',
   "tradingLocked" boolean not null default false,
   "deadlineAt" bigint
 );
-insert into public.hub_settings ("id") values (1) on conflict do nothing;
 
+-- 6. listings -> teams
 create table if not exists public.listings (
   "id" text primary key,
   "status" text not null check ("status" in ('OPEN', 'NEGOTIATING', 'PENDING_SIGNATURE', 'CLOSED')),
@@ -77,6 +101,7 @@ create table if not exists public.listings (
   "createdAt" bigint not null default public.now_ms()
 );
 
+-- 7. threads -> listings, teams
 create table if not exists public.threads (
   "id" text primary key,
   "listingId" text not null references public.listings("id") on delete cascade,
@@ -86,6 +111,7 @@ create table if not exists public.threads (
   "closed" boolean not null default false
 );
 
+-- 8. contracts -> threads, listings, teams
 create table if not exists public.contracts (
   "id" text primary key,
   "threadId" text not null references public.threads("id") on delete cascade,
@@ -114,6 +140,7 @@ create table if not exists public.contracts (
   "adminOverridden" boolean
 );
 
+-- 9. mr_offers -> threads, teams
 create table if not exists public.mr_offers (
   "id" text primary key,
   "threadId" text not null references public.threads("id") on delete cascade,
@@ -126,6 +153,7 @@ create table if not exists public.mr_offers (
   "createdAt" bigint not null default public.now_ms()
 );
 
+-- 10. messages -> threads
 create table if not exists public.messages (
   "id" text primary key,
   "threadId" text not null references public.threads("id") on delete cascade,
@@ -136,6 +164,7 @@ create table if not exists public.messages (
   "mrOfferId" text
 );
 
+-- 11. ratings -> contracts, teams
 create table if not exists public.ratings (
   "id" text primary key,
   "contractId" text not null references public.contracts("id") on delete cascade,
@@ -147,6 +176,7 @@ create table if not exists public.ratings (
   unique ("contractId", "fromId")
 );
 
+-- 12. shipments (inventory movements) -> contracts, teams
 create table if not exists public.shipments (
   "id" text primary key,
   "contractId" text references public.contracts("id") on delete cascade,
@@ -159,6 +189,7 @@ create table if not exists public.shipments (
   "region" text not null
 );
 
+-- 13. activity
 create table if not exists public.activity (
   "id" text primary key,
   "kind" text not null,
@@ -168,14 +199,18 @@ create table if not exists public.activity (
 );
 create index if not exists activity_at on public.activity ("at" desc);
 
+-- 14. announcements
 create table if not exists public.announcements (
   "id" text primary key,
   "tag" text not null check ("tag" in ('Official', 'Reminder', 'Community')),
   "title" text not null,
   "body" text not null,
+  "author" text not null default 'admin',
   "at" bigint not null default public.now_ms()
 );
+alter table public.announcements add column if not exists "author" text not null default 'admin';
 
+-- 15. fines -> teams
 create table if not exists public.fines (
   "id" text primary key,
   "teamId" text not null references public.teams("id") on delete cascade,
@@ -184,6 +219,7 @@ create table if not exists public.fines (
   "at" bigint not null default public.now_ms()
 );
 
+-- 16. ai_reviews -> contracts
 create table if not exists public.ai_reviews (
   "contractId" text primary key references public.contracts("id") on delete cascade,
   "score" int not null,
@@ -192,10 +228,18 @@ create table if not exists public.ai_reviews (
   "strengths" jsonb not null default '[]'
 );
 
+-- Seed data
+insert into public.hub_settings ("id") values (1) on conflict do nothing;
+
 insert into public.teams ("id", "number", "name")
 select 't' || lpad(n::text, 2, '0'), n, 'Team ' || n from generate_series(1, 75) as n
 on conflict do nothing;
 
+-- Professor Tim: game administrator seat (number 0, id 'prof')
+insert into public.teams ("id", "number", "name") values ('prof', 0, 'Professor Tim')
+on conflict do nothing;
+
+-- Lock down: RLS on, no policies, no anon/authenticated access
 do $$
 declare t text;
 begin
@@ -206,4 +250,3 @@ begin
     execute format('revoke all on public.%I from anon, authenticated', t);
   end loop;
 end $$;
-`

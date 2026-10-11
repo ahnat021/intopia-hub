@@ -53,7 +53,8 @@ interface HubValue extends Snapshot {
   proposeMr: (draft: MrOfferDraft) => Promise<boolean>
   respondMr: (offerId: string, accept: boolean) => Promise<boolean>
   submitRating: (draft: RatingDraft) => Promise<boolean>
-  certifyTraining: () => Promise<boolean>
+  signWaiver: (signatoryName: string) => Promise<boolean>
+  setCalendar: (period: string, deadlineAt: number | null) => Promise<boolean>
   recordAiReview: (contractId: string, review: AiReview) => void
   adminApprove: (contractId: string) => Promise<boolean>
   adminDelete: (contractId: string) => Promise<boolean>
@@ -153,7 +154,8 @@ export function HubProvider({ children, initial }: { children: ReactNode; initia
       proposeMr: (draft) => done(run(() => actions.proposeMr(draft))),
       respondMr: (offerId, accept) => done(run(() => actions.respondMr(offerId, accept))),
       submitRating: (draft) => done(run(() => actions.submitRating(draft))),
-      certifyTraining: () => done(run(() => actions.certifyTraining())),
+      signWaiver: (name) => done(run(() => actions.signWaiver(name))),
+      setCalendar: (period, deadlineAt) => done(run(() => actions.setCalendar(period, deadlineAt))),
       recordAiReview: (contractId, review) => {
         if (!snapshot.aiReviews[contractId]) void run(() => actions.recordAiReview(contractId, review))
       },
