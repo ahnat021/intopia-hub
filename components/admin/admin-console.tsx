@@ -1,8 +1,9 @@
 "use client"
 
-import { useMemo, useState, type FormEvent } from "react"
+import { useMemo, useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, CheckCircle2, FileStack, KeyRound, LogOut, Pencil, Search, ShieldAlert, ShieldCheck, Trash2, Users } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { ArrowLeft, CheckCircle2, FileStack, LogOut, Pencil, Search, ShieldAlert, ShieldCheck, Trash2, Users } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,25 +11,13 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { useHub } from "@/lib/hub-store"
-import { TEAMS, teamLabel, type Contract, type ContractStatus } from "@/lib/mock-data"
+import { PUBLIC_TEAMS, teamLabel, type Contract, type ContractStatus } from "@/lib/mock-data"
 import { formatCompactUSD, formatUSD, productCode } from "@/lib/intopia-rules"
 import { cn } from "@/lib/utils"
 import { OverrideDialog } from "./override-dialog"
 import { FinesPanel, KycQueuePanel } from "./compliance-panels"
-
-const ADMIN_PASSCODE = "INTOPIA-ADMIN"
 
 const KIND_LABEL: Record<Contract["kind"], string> = {
   PRODUCT_SALE: "Product Sale",
@@ -46,63 +35,27 @@ const STATUS_STYLE: Record<ContractStatus, string> = {
 type LedgerFilter = "ALL" | "AWAITING" | "FINALIZED" | "CLOSED"
 
 export function AdminConsole() {
+  const router = useRouter()
   const { adminAuthed, setAdminAuthed } = useHub()
-  return adminAuthed ? <AdminDashboard onSignOut={() => setAdminAuthed(false)} /> : <AdminGate onSuccess={() => setAdminAuthed(true)} />
+  if (!adminAuthed) return <HiddenRoute />
+  return (
+    <AdminDashboard
+      onSignOut={() => {
+        setAdminAuthed(false)
+        router.push("/")
+      }}
+    />
+  )
 }
 
-function AdminGate({ onSuccess }: { onSuccess: () => void }) {
-  const [code, setCode] = useState("")
-  const [error, setError] = useState<string | null>(null)
-
-  const submit = (e: FormEvent) => {
-    e.preventDefault()
-    if (code.trim().toUpperCase() === ADMIN_PASSCODE) onSuccess()
-    else setError("Incorrect administrator passcode.")
-  }
-
+/** Unauthenticated visitors get a generic 404 so the console's existence isn't revealed. */
+function HiddenRoute() {
   return (
-    <main className="flex min-h-dvh items-center justify-center px-4 py-12">
-      <form onSubmit={submit} className="flex w-full max-w-sm flex-col gap-5 rounded-2xl border border-border bg-card/90 p-6 shadow-xl backdrop-blur-md">
-        <div className="flex flex-col items-center gap-3 text-center">
-          <span className="flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <ShieldCheck className="size-6" aria-hidden />
-          </span>
-          <div>
-            <h1 className="text-xl font-semibold">Hub Administrator</h1>
-            <p className="text-sm text-muted-foreground">Restricted to the simulation facilitator.</p>
-          </div>
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="admin-code">Passcode</Label>
-          <Input
-            id="admin-code"
-            type="password"
-            autoComplete="off"
-            value={code}
-            onChange={(e) => {
-              setCode(e.target.value)
-              setError(null)
-            }}
-            aria-invalid={!!error}
-            aria-describedby="admin-code-hint"
-          />
-          <p id="admin-code-hint" className={cn("text-xs", error ? "text-destructive" : "text-muted-foreground")}>
-            {error ?? (
-              <>
-                Demo passcode: <span className="font-mono text-foreground">{ADMIN_PASSCODE}</span>
-              </>
-            )}
-          </p>
-        </div>
-        <Button type="submit">
-          <KeyRound aria-hidden />
-          Enter Console
-        </Button>
-        <Link href="/" className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="size-3.5" aria-hidden />
-          Back to the hub
-        </Link>
-      </form>
+    <main className="flex min-h-dvh items-center justify-center px-4">
+      <div className="flex items-center gap-5">
+        <h1 className="border-r border-border pr-5 text-2xl font-semibold">404</h1>
+        <p className="text-sm text-muted-foreground">This page could not be found.</p>
+      </div>
     </main>
   )
 }
@@ -112,7 +65,6 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
   const [filter, setFilter] = useState<LedgerFilter>("ALL")
   const [teamQuery, setTeamQuery] = useState("")
   const [editing, setEditing] = useState<Contract | null>(null)
-  const [deleting, setDeleting] = useState<Contract | null>(null)
 
   const counts = useMemo(
     () => ({
@@ -138,7 +90,7 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
 
   const teams = useMemo(() => {
     const q = teamQuery.trim().toLowerCase()
-    return TEAMS.filter((t) => !q || `${t.name} ${t.company} ${t.region}`.toLowerCase().includes(q))
+    return PUBLIC_TEAMS.filter((t) => !q || `${t.name} ${t.company} ${t.region}`.toLowerCase().includes(q))
   }, [teamQuery])
 
   const contractCount = (teamId: string) => contracts.filter((c) => c.initiatorId === teamId || c.counterpartyId === teamId).length
@@ -277,13 +229,16 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
                             <Pencil aria-hidden />
                           </Button>
                           <Button
-                            size="icon-sm"
-                            variant="ghost"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => setDeleting(c)}
-                            aria-label={`Delete ${c.id}`}
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => {
+                              adminDelete(c.id)
+                              toast.error(`${c.id} deleted from the global ledger`)
+                            }}
+                            aria-label={`Delete trade ${c.id}`}
                           >
                             <Trash2 aria-hidden />
+                            Delete Trade
                           </Button>
                         </div>
                       </TableCell>
@@ -354,32 +309,6 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
           setEditing(null)
         }}
       />
-
-      <AlertDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete {deleting?.id}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This removes the contract from both teams and the ledger. Any linked shipment is cancelled. This cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => {
-                if (deleting) {
-                  adminDelete(deleting.id)
-                  toast(`${deleting.id} deleted`)
-                }
-                setDeleting(null)
-              }}
-            >
-              Delete contract
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   )
 }

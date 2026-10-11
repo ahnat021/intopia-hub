@@ -4,7 +4,7 @@ import { useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } 
 import { Popover as PopoverPrimitive } from "radix-ui"
 import { Check, ChevronsUpDown, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { TEAMS, TEAM_BY_ID, type Team } from "@/lib/mock-data"
+import { PUBLIC_TEAMS, TEAM_BY_ID, isReservedTeam, type Team } from "@/lib/mock-data"
 
 interface Props {
   value: string | null
@@ -14,6 +14,8 @@ interface Props {
   /** Optional per-team status marker rendered at the end of each option. */
   renderMeta?: (team: Team) => ReactNode
   isDisabled?: (team: Team) => boolean
+  /** Called when Enter is pressed on a non-team query; return true if handled. */
+  onCommand?: (query: string) => boolean
   className?: string
 }
 
@@ -25,17 +27,17 @@ function matches(team: Team, q: string) {
 }
 
 /** Searchable dropdown over the full 75-team roster with keyboard navigation. */
-export function TeamCombobox({ value, onChange, id, placeholder = "Select a team (1–75)", renderMeta, isDisabled, className }: Props) {
+export function TeamCombobox({ value, onChange, id, placeholder = "Select a team (1–75)", renderMeta, isDisabled, onCommand, className }: Props) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
   const [active, setActive] = useState(0)
   const listId = useId()
   const listRef = useRef<HTMLUListElement>(null)
-  const selected = value ? TEAM_BY_ID[value] : null
+  const selected = value && !isReservedTeam(value) ? TEAM_BY_ID[value] : null
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return TEAMS.filter((t) => matches(t, q))
+    return PUBLIC_TEAMS.filter((t) => matches(t, q))
   }, [query])
 
   const choose = (team: Team) => {
@@ -63,6 +65,11 @@ export function TeamCombobox({ value, onChange, id, placeholder = "Select a team
     } else if (e.key === "Enter") {
       if (e.nativeEvent.isComposing || e.keyCode === 229) return
       e.preventDefault()
+      if (results.length === 0 && onCommand?.(query.trim())) {
+        setOpen(false)
+        setQuery("")
+        return
+      }
       const team = results[active]
       if (team) choose(team)
     }

@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
 import { useHub } from "@/lib/hub-store"
-import { TEAM_BY_ID, updateTeamContact, type Team } from "@/lib/mock-data"
+import { TEAM_BY_ID, isReservedTeam, updateTeamContact, type Team } from "@/lib/mock-data"
 
 /**
  * Simulated team authentication for the prototype. Accounts and the active session
@@ -71,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     for (const a of Object.values(stored)) updateTeamContact(a.teamId, a.whatsapp, a.email)
     const sessionId = readStorage<string | null>(SESSION_KEY, null)
     setAccounts(stored)
-    if (sessionId && stored[sessionId] && !isBankrupt(sessionId)) {
+    if (sessionId && stored[sessionId] && !isBankrupt(sessionId) && !isReservedTeam(sessionId)) {
       setTeamId(sessionId)
       setStatus("signedIn")
     } else {
@@ -90,7 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = useCallback(
     (account: TeamAccount) => {
-      if (isBankrupt(account.teamId)) return
+      if (isBankrupt(account.teamId) || isReservedTeam(account.teamId)) return
       setAccounts((prev) => {
         const next = { ...prev, [account.teamId]: account }
         writeStorage(ACCOUNTS_KEY, next)
@@ -104,6 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback(
     (id: string, pin: string): SignInResult => {
+      if (isReservedTeam(id)) return "no-account"
       if (isBankrupt(id)) return "bankrupt"
       if (bannedIds.includes(id)) return "banned"
       const account = accounts[id]

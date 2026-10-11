@@ -298,8 +298,15 @@ export const TEAMS: Team[] = COMPANY_NAMES.map((company, i) => {
 
 export const TEAM_BY_ID: Record<string, Team> = Object.fromEntries(TEAMS.map((t) => [t.id, t]))
 
-/** Teams able to trade (bankrupt teams are excluded from generated market data). */
-export const ACTIVE_TEAMS = TEAMS.filter((t) => t.equity >= 0)
+/** Team 25 operates the hub and can never be selected, registered or impersonated. */
+export const RESERVED_TEAM_ID = teamIdFor(25)
+export const isReservedTeam = (teamId: string) => teamId === RESERVED_TEAM_ID
+
+/** Roster shown in every public picker. */
+export const PUBLIC_TEAMS = TEAMS.filter((t) => !isReservedTeam(t.id))
+
+/** Teams able to trade (bankrupt and reserved teams are excluded from generated market data). */
+export const ACTIVE_TEAMS = PUBLIC_TEAMS.filter((t) => t.equity >= 0)
 
 export function teamLabel(teamId: string) {
   return TEAM_BY_ID[teamId]?.name ?? teamId
