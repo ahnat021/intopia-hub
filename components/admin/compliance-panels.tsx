@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { TeamCombobox } from "@/components/team-combobox"
 import { useHub } from "@/lib/hub-store"
-import { FINE_REASONS, formatSimClock, teamLabel, type FineReason } from "@/lib/mock-data"
+import { FINE_REASONS, formatClock, teamLabel, type FineReason } from "@/lib/domain"
 import { formatCompactUSD } from "@/lib/intopia-rules"
 
 export function KycQueuePanel() {
@@ -34,7 +34,7 @@ export function KycQueuePanel() {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{teamLabel(r.teamId)}</p>
                 <p className="truncate text-xs text-muted-foreground">
-                  {r.email} · email verified · {formatSimClock(r.at)}
+                  {r.email} · email verified · {formatClock(r.at)}
                 </p>
               </div>
               <div className="flex gap-1.5">
@@ -133,7 +133,7 @@ export function FinesPanel() {
             <div className="min-w-0">
               <p className="truncate font-medium">{teamLabel(f.teamId)}</p>
               <p className="truncate text-xs text-muted-foreground">
-                {f.reason} · {formatSimClock(f.at)}
+                {f.reason} · {formatClock(f.at)}
               </p>
             </div>
             <span className="shrink-0 font-mono font-semibold text-destructive">-{formatCompactUSD(f.amountK * 1000)}</span>

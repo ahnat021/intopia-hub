@@ -2,24 +2,23 @@
 
 import { useState, useTransition, type FormEvent } from "react"
 import Image from "next/image"
-import { useRouter } from "next/navigation"
-import { verifyAdminPassword } from "@/lib/admin-auth"
-import { ArrowLeft, Ban, Globe2, KeyRound, Loader2, Lock, Mail, ShieldCheck, Wrench } from "lucide-react"
+import { ArrowLeft, Ban, Crown, KeyRound, Loader2, Lock, Mail, RotateCw, ShieldCheck } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { TeamCombobox } from "@/components/team-combobox"
-import { isBankrupt, useAuth } from "@/lib/auth-context"
+import { BrandMark } from "@/components/brand-mark"
+import { useAuth } from "@/lib/auth-context"
 import { useHub } from "@/lib/hub-store"
-import { PUBLIC_TEAMS, TEAM_BY_ID } from "@/lib/mock-data"
-
-const TEAM_COUNT = PUBLIC_TEAMS.length
-import { formatCompactUSD } from "@/lib/intopia-rules"
+import { useI18n } from "@/lib/i18n"
+import { OPERATING_AREAS, formatCompactUSD } from "@/lib/intopia-rules"
+import { isBankrupt, isOperator, type Region } from "@/lib/domain"
+import { cn } from "@/lib/utils"
 
 const PIN_RE = /^\d{4}$/
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
-const DEV_BYPASS_CODE = "123456"
+const PHONE_RE = /^\+?[\d\s()-]{7,20}$/
 
 function PinInput({ id, value, onChange, autoFocus }: { id: string; value: string; onChange: (v: string) => void; autoFocus?: boolean }) {
   return (
@@ -38,153 +37,118 @@ function PinInput({ id, value, onChange, autoFocus }: { id: string; value: strin
   )
 }
 
-function ReturningForm({ teamId }: { teamId: string }) {
-  const { signIn } = useAuth()
-  const [pin, setPin] = useState("")
-  const [error, setError] = useState<string | null>(null)
-
-  const submit = (e: FormEvent) => {
-    e.preventDefault()
-    if (!PIN_RE.test(pin)) return setError("Enter your 4-digit PIN.")
-    const result = signIn(teamId, pin)
-    if (result === "bad-pin") {
-      setError("Incorrect PIN. Try again.")
-      setPin("")
-    } else if (result === "banned") {
-      setError("This team has been removed from the hub by the administrator.")
-      setPin("")
-    }
+export async function requestCode(email: string, purpose: "team-register" | "admin-setup") {
+  try {
+    const res = await fetch("/api/auth/send-code", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, purpose }),
+    })
+    const body = (await res.json().catch(() => ({}))) as { error?: string }
+    return res.ok ? null : (body.error ?? "We couldn't send the code.")
+  } catch {
+    return "Network error. Please try again."
   }
-
-  return (
-    <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="pin">4-digit team PIN</Label>
-        <PinInput id="pin" value={pin} onChange={(v) => { setPin(v); setError(null) }} autoFocus />
-        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-      </div>
-      <Button type="submit" size="lg" className="w-full">
-        <KeyRound aria-hidden />
-        Enter the Hub
-      </Button>
-    </form>
-  )
 }
 
-function AdminLoginForm({ onCancel }: { onCancel: () => void }) {
-  const router = useRouter()
-  const { setAdminAuthed } = useHub()
-  const [password, setPassword] = useState("")
+function ReturningForm({ teamId }: { teamId: string }) {
+  const { signIn } = useAuth()
+  const { t } = useI18n()
+  const [pin, setPin] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
-    if (!password) return setError("Enter the facilitator password.")
+    if (!PIN_RE.test(pin)) return setError("Enter your 4-digit PIN.")
     startTransition(async () => {
-      if (await verifyAdminPassword(password)) {
-        setAdminAuthed(true)
-        router.push("/admin")
-      } else {
-        setError("Access denied.")
-        setPassword("")
+      const result = await signIn(teamId, pin)
+      if (!result.ok) {
+        setError(result.error)
+        setPin("")
       }
     })
   }
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Restricted</p>
-          <h2 className="text-xl font-bold">Facilitator access</h2>
-        </div>
-        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
-          <ArrowLeft aria-hidden />
-          Back
-        </Button>
-      </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="admin-password">Password</Label>
-        <Input
-          id="admin-password"
-          type="password"
-          autoComplete="off"
-          autoFocus
-          value={password}
-          onChange={(e) => {
-            setPassword(e.target.value)
-            setError(null)
-          }}
-          aria-invalid={!!error}
-        />
+        <Label htmlFor="pin">{t("login.pin")}</Label>
+        <PinInput id="pin" value={pin} onChange={(v) => { setPin(v); setError(null) }} autoFocus />
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       </div>
       <Button type="submit" size="lg" className="w-full" disabled={pending}>
-        {pending ? <Loader2 className="animate-spin" aria-hidden /> : <ShieldCheck aria-hidden />}
-        {pending ? "Verifying..." : "Continue"}
+        {pending ? <Loader2 className="animate-spin" aria-hidden /> : <KeyRound aria-hidden />}
+        {t("login.enter")}
       </Button>
     </form>
   )
 }
 
-type SetupStep = "details" | "sending" | "verify"
+type SetupStep = "details" | "verify"
 
 function SetupForm({ teamId }: { teamId: string }) {
   const { register } = useAuth()
-  const team = TEAM_BY_ID[teamId]
+  const { t } = useI18n()
   const [step, setStep] = useState<SetupStep>("details")
+  const [company, setCompany] = useState("")
+  const [region, setRegion] = useState<Region | "">("")
+  const [whatsapp, setWhatsapp] = useState("")
+  const [email, setEmail] = useState("")
   const [pin, setPin] = useState("")
   const [confirm, setConfirm] = useState("")
-  const [email, setEmail] = useState("")
-  const [sentCode, setSentCode] = useState<string | null>(null)
   const [code, setCode] = useState("")
-  const [codeError, setCodeError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
+  const [pending, startTransition] = useTransition()
 
   const errors = {
+    company: company.trim().length < 2 ? "Enter your company name." : null,
+    region: !region ? "Choose your home region." : null,
+    whatsapp: !PHONE_RE.test(whatsapp.trim()) ? "Enter a valid WhatsApp number." : null,
+    email: !EMAIL_RE.test(email.trim()) ? "Enter a valid email address." : null,
     pin: !PIN_RE.test(pin) ? "PIN must be exactly 4 digits." : null,
     confirm: confirm !== pin ? "PINs do not match." : null,
-    email: !EMAIL_RE.test(email.trim()) ? "Enter a valid email address." : null,
   }
-  const show = (key: keyof typeof errors) => submitted && errors[key]
+  const show = (key: keyof typeof errors) => submitted && errors[key] && <p className="text-xs text-destructive">{errors[key]}</p>
 
-  const dispatchCode = (e: FormEvent) => {
+  const send = () =>
+    startTransition(async () => {
+      const failure = await requestCode(email.trim(), "team-register")
+      if (failure) return setError(failure)
+      setError(null)
+      setStep("verify")
+      toast.success("Verification code sent", { description: email.trim() })
+    })
+
+  const dispatch = (e: FormEvent) => {
     e.preventDefault()
     setSubmitted(true)
     if (Object.values(errors).some(Boolean)) return
-    setStep("sending")
-    const generated = String(Math.floor(100000 + Math.random() * 900000))
-    const toastId = toast.loading("Dispatching secure code...", { description: email.trim() })
-    window.setTimeout(() => {
-      setSentCode(generated)
-      setStep("verify")
-      toast.success("Secure code delivered", { id: toastId, description: `Simulated inbox for ${email.trim()}: ${generated}` })
-    }, 1400)
+    send()
   }
 
   const verify = (e: FormEvent) => {
     e.preventDefault()
-    if (code !== sentCode && code !== DEV_BYPASS_CODE) {
-      setCodeError("That code doesn't match. Check your inbox or resend.")
-      return
-    }
-    register({ teamId, pin, email: email.trim(), whatsapp: team.whatsapp })
-    toast.success("Email verified", { description: "Your account is now in the KYC review queue." })
+    startTransition(async () => {
+      const result = await register({ teamId, company: company.trim(), region, whatsapp: whatsapp.trim(), email: email.trim(), pin, code })
+      if (!result.ok) return setError(result.error)
+      toast.success("Email verified", { description: "Your registration is now in the KYC review queue." })
+    })
   }
 
   if (step === "verify") {
     return (
       <form onSubmit={verify} className="flex flex-col gap-4" noValidate>
-        <div className="flex flex-col gap-1 rounded-lg border border-border bg-secondary/40 p-3 text-sm">
+        <div className="flex flex-col gap-1 rounded-lg border border-border bg-secondary/50 p-3 text-sm">
           <p className="flex items-center gap-1.5 font-medium">
             <Mail className="size-3.5 text-primary" aria-hidden />
-            Code sent to {email.trim()}
+            {t("setup.codeSent")} {email.trim()}
           </p>
-          <p className="text-xs leading-relaxed text-muted-foreground">Enter the 6-digit code to verify ownership of this inbox.</p>
+          <p className="text-xs leading-relaxed text-muted-foreground">{t("setup.codeHint")}</p>
         </div>
         <div className="flex flex-col gap-2">
-          <Label htmlFor="otp">6-digit verification code</Label>
+          <Label htmlFor="otp">{t("setup.code")}</Label>
           <Input
             id="otp"
             autoFocus
@@ -194,34 +158,25 @@ function SetupForm({ teamId }: { teamId: string }) {
             value={code}
             onChange={(e) => {
               setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
-              setCodeError(null)
+              setError(null)
             }}
             placeholder="000000"
             className="h-12 text-center font-mono text-xl tracking-[0.5em]"
           />
-          {codeError && <p role="alert" className="text-xs text-destructive">{codeError}</p>}
+          {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
         </div>
-        <Button type="submit" size="lg" className="w-full" disabled={code.length !== 6}>
-          <ShieldCheck aria-hidden />
-          Verify &amp; submit for review
+        <Button type="submit" size="lg" className="w-full" disabled={code.length !== 6 || pending}>
+          {pending ? <Loader2 className="animate-spin" aria-hidden /> : <ShieldCheck aria-hidden />}
+          {t("setup.verify")}
         </Button>
         <div className="flex items-center justify-between gap-2">
-          <Button type="button" variant="ghost" size="sm" onClick={() => { setStep("details"); setCode("") }}>
+          <Button type="button" variant="ghost" size="sm" onClick={() => { setStep("details"); setCode(""); setError(null) }}>
             <ArrowLeft aria-hidden />
-            Edit details
+            {t("setup.edit")}
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setCode(DEV_BYPASS_CODE)
-              setCodeError(null)
-            }}
-            className="border-dashed font-mono text-xs"
-          >
-            <Wrench aria-hidden />
-            Developer Bypass: {DEV_BYPASS_CODE}
+          <Button type="button" variant="outline" size="sm" onClick={send} disabled={pending}>
+            <RotateCw aria-hidden />
+            {t("setup.resend")}
           </Button>
         </div>
       </form>
@@ -229,93 +184,120 @@ function SetupForm({ teamId }: { teamId: string }) {
   }
 
   return (
-    <form onSubmit={dispatchCode} className="flex flex-col gap-4" noValidate>
+    <form onSubmit={dispatch} className="flex flex-col gap-3.5" noValidate>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="company">{t("setup.company")}</Label>
+          <Input id="company" autoFocus value={company} maxLength={80} onChange={(e) => setCompany(e.target.value)} placeholder="Nordvik Industries" />
+          {show("company")}
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="region">{t("setup.region")}</Label>
+          <select
+            id="region"
+            value={region}
+            onChange={(e) => setRegion(e.target.value as Region)}
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          >
+            <option value="" disabled>
+              —
+            </option>
+            {OPERATING_AREAS.map((a) => (
+              <option key={a} value={a}>
+                {a}
+              </option>
+            ))}
+          </select>
+          {show("region")}
+        </div>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="whatsapp">{t("setup.whatsapp")}</Label>
+          <Input id="whatsapp" type="tel" autoComplete="tel" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="+1 555 123 4567" />
+          {show("whatsapp")}
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="email">{t("setup.email")}</Label>
+          <Input id="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="team@university.edu" />
+          {show("email")}
+        </div>
+      </div>
       <div className="grid grid-cols-2 gap-3">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="new-pin">Set 4-digit PIN</Label>
-          <PinInput id="new-pin" value={pin} onChange={setPin} autoFocus />
-          {show("pin") && <p className="text-xs text-destructive">{errors.pin}</p>}
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="new-pin">{t("setup.pin")}</Label>
+          <PinInput id="new-pin" value={pin} onChange={setPin} />
+          {show("pin")}
         </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="confirm-pin">Confirm PIN</Label>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="confirm-pin">{t("setup.confirm")}</Label>
           <PinInput id="confirm-pin" value={confirm} onChange={setConfirm} />
-          {show("confirm") && <p className="text-xs text-destructive">{errors.confirm}</p>}
+          {show("confirm")}
         </div>
       </div>
-
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="email" className="flex items-center gap-1.5">
-          <Mail className="size-3.5 text-muted-foreground" aria-hidden />
-          Team contact email
-        </Label>
-        <Input id="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="team@university.edu" />
-        {show("email") && <p className="text-xs text-destructive">{errors.email}</p>}
-      </div>
-
-      <Button type="submit" size="lg" className="w-full" disabled={step === "sending"}>
-        {step === "sending" ? <Loader2 className="animate-spin" aria-hidden /> : <Mail aria-hidden />}
-        {step === "sending" ? "Dispatching secure code..." : "Send secure code"}
+      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+      <Button type="submit" size="lg" className="w-full" disabled={pending}>
+        {pending ? <Loader2 className="animate-spin" aria-hidden /> : <Mail aria-hidden />}
+        {pending ? t("setup.sending") : t("setup.send")}
       </Button>
-      <p className="text-pretty text-xs leading-relaxed text-muted-foreground">
-        New accounts are reviewed by the Hub Administrator (KYC) before trading access is granted.
-      </p>
+      <p className="text-pretty text-xs leading-relaxed text-muted-foreground">{t("setup.review")}</p>
     </form>
   )
 }
 
 export function LoginGate() {
-  const { findAccount } = useAuth()
-  const { approvedIds, kycQueue } = useHub()
+  const { isRegistered } = useAuth()
+  const { teams, teamById, approvedIds, kycQueue, settings, configured } = useHub()
+  const { t } = useI18n()
   const [selected, setSelected] = useState<string | null>(null)
-  const [adminMode, setAdminMode] = useState(false)
-  const team = selected ? TEAM_BY_ID[selected] : null
-  const account = selected ? findAccount(selected) : undefined
+  const team = selected ? teamById[selected] : null
+  const pendingCount = teams.filter((x) => x.kyc === "pending").length || kycQueue.length
 
   return (
     <main className="relative flex min-h-dvh items-center justify-center overflow-hidden px-4 py-10">
-      <Image src="/images/globe-network.png" alt="" fill priority sizes="100vw" className="pointer-events-none object-cover opacity-25" />
-      <div aria-hidden className="pointer-events-none absolute inset-0 bg-background/70" />
+      <Image src="/images/globe-network.png" alt="" fill priority sizes="100vw" className="pointer-events-none object-cover opacity-20" />
+      <div aria-hidden className="pointer-events-none absolute inset-0 bg-background/75" />
 
-      <div className="relative grid w-full max-w-4xl overflow-hidden rounded-2xl border border-border bg-card/90 shadow-2xl shadow-black/40 backdrop-blur md:grid-cols-[1.15fr_1fr]">
-        <section aria-labelledby="pick-team" className="flex flex-col gap-5 border-b border-border p-6 md:border-r md:border-b-0 sm:p-8">
+      <div className="relative grid w-full max-w-4xl overflow-hidden rounded-2xl border border-border bg-card/95 shadow-2xl shadow-primary/10 backdrop-blur md:grid-cols-[1.1fr_1fr]">
+        <section aria-labelledby="pick-team" className="flex flex-col gap-5 border-b border-border p-6 sm:p-8 md:border-r md:border-b-0">
           <div className="flex items-center gap-3">
-            <span className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-              <Globe2 className="size-5" aria-hidden />
-            </span>
+            <BrandMark className="size-11" />
             <div>
-              <p className="text-lg font-bold leading-tight">Intopia <span className="text-primary">Hub</span></p>
-              <p className="text-xs text-muted-foreground">Period 4 · Trading open · {TEAM_COUNT} teams</p>
+              <p className="text-xl font-semibold leading-tight">
+                Intopia <span className="text-gold">Hub</span>
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {settings.period} · {settings.tradingLocked ? "Contracts locked" : "Trading open"} · {teams.length || 75} {t("login.stats.teams").toLowerCase()}
+              </p>
             </div>
           </div>
           <div>
-            <h1 id="pick-team" className="text-balance text-2xl font-bold tracking-tight">Select your team</h1>
-            <p className="mt-1 text-pretty text-sm leading-relaxed text-muted-foreground">
-              Search the roster by team number or company. Demo: <span className="font-mono text-foreground">Team 7</span> or{" "}
-              <span className="font-mono text-foreground">Team 18</span>, PIN <span className="font-mono text-foreground">1234</span>.
-            </p>
+            <h1 id="pick-team" className="text-balance text-3xl font-semibold tracking-tight">
+              {t("login.select")}
+            </h1>
+            <p className="mt-1.5 text-pretty text-sm leading-relaxed text-muted-foreground">{t("login.selectHint")}</p>
           </div>
 
+          {!configured && (
+            <p role="status" className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs leading-relaxed text-foreground">
+              {t("db.offline")}
+            </p>
+          )}
+
           <div className="flex flex-col gap-2">
-            <Label htmlFor="team-picker">Team</Label>
+            <Label htmlFor="team-picker">{t("login.team")}</Label>
             <TeamCombobox
               id="team-picker"
               value={selected}
-              onChange={(id) => {
-                setAdminMode(false)
-                setSelected(id)
-              }}
-              onCommand={(q) => {
-                if (q.toLowerCase() !== "admin") return false
-                setSelected(null)
-                setAdminMode(true)
-                return true
-              }}
-              renderMeta={(t) =>
-                t.equity < 0 ? (
+              onChange={setSelected}
+              renderMeta={(x) =>
+                isBankrupt(x) ? (
                   <span className="text-[10px] font-semibold uppercase text-destructive">Bankrupt</span>
-                ) : approvedIds.includes(t.id) && findAccount(t.id) ? (
+                ) : x.banned ? (
+                  <span className="text-[10px] font-semibold uppercase text-destructive">Removed</span>
+                ) : x.kyc === "approved" ? (
                   <span className="text-[10px] font-semibold uppercase text-success">Active</span>
-                ) : kycQueue.some((r) => r.teamId === t.id) ? (
+                ) : x.kyc === "pending" ? (
                   <span className="text-[10px] font-semibold uppercase text-warning">Pending</span>
                 ) : null
               }
@@ -324,11 +306,11 @@ export function LoginGate() {
 
           <dl className="grid grid-cols-3 gap-2 text-center">
             {[
-              { label: "Teams", value: TEAM_COUNT },
-              { label: "Verified", value: approvedIds.length },
-              { label: "In review", value: kycQueue.length },
+              { label: t("login.stats.teams"), value: teams.length || 75 },
+              { label: t("login.stats.verified"), value: approvedIds.length },
+              { label: t("login.stats.review"), value: pendingCount },
             ].map((s) => (
-              <div key={s.label} className="rounded-lg border border-border bg-secondary/40 px-2 py-2.5">
+              <div key={s.label} className="rounded-lg border border-border bg-secondary/50 px-2 py-2.5">
                 <dt className="text-[11px] uppercase tracking-wider text-muted-foreground">{s.label}</dt>
                 <dd className="font-mono text-lg font-semibold">{s.value}</dd>
               </div>
@@ -337,41 +319,52 @@ export function LoginGate() {
         </section>
 
         <section aria-live="polite" className="flex flex-col justify-center gap-5 p-6 sm:p-8">
-          {adminMode ? (
-            <AdminLoginForm onCancel={() => setAdminMode(false)} />
-          ) : !team ? (
+          {!team ? (
             <div className="flex flex-col items-center gap-3 text-center text-muted-foreground">
               <Lock className="size-8" aria-hidden />
-              <p className="text-sm">Choose a team to sign in or complete first-time setup.</p>
+              <p className="text-sm">{t("login.choose")}</p>
             </div>
           ) : (
             <>
-              <div className="flex items-start justify-between gap-3">
+              <div className={cn("flex items-start justify-between gap-3", isOperator(team.id) && "operator-panel rounded-xl p-3")}>
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                    {isBankrupt(team.id) ? "Locked" : account ? "Returning team" : "First-time setup"}
+                    {isBankrupt(team) ? t("login.locked") : isRegistered(team.id) ? t("login.returning") : t("login.setup")}
                   </p>
-                  <h2 className="text-xl font-bold">{team.name}</h2>
-                  <p className="text-sm text-muted-foreground">{team.company} · {team.region}</p>
+                  <h2 className="flex items-center gap-2 text-2xl font-semibold">
+                    {team.name}
+                    {isOperator(team.id) && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-gold/15 px-2 py-0.5 font-sans text-[10px] font-bold uppercase tracking-wider text-gold">
+                        <Crown className="size-3" aria-hidden />
+                        {t("operator.badge")}
+                      </span>
+                    )}
+                  </h2>
+                  {team.company && (
+                    <p className="text-sm text-muted-foreground">
+                      {team.company}
+                      {team.region && ` · ${team.region}`}
+                    </p>
+                  )}
                 </div>
                 <Button variant="ghost" size="sm" onClick={() => setSelected(null)}>
                   <ArrowLeft aria-hidden />
-                  Change
+                  {t("login.change")}
                 </Button>
               </div>
 
-              {isBankrupt(team.id) ? (
+              {isBankrupt(team) ? (
                 <div role="alert" className="flex flex-col gap-2 rounded-xl border border-destructive/40 bg-destructive/10 p-4">
                   <p className="flex items-center gap-2 font-semibold text-destructive">
                     <Ban className="size-4" aria-hidden />
                     Bankruptcy lockout
                   </p>
                   <p className="text-pretty text-sm leading-relaxed text-muted-foreground">
-                    Consolidated equity is <span className="font-mono text-destructive">{formatCompactUSD(team.equity * 1000)}</span>.
-                    Teams with negative equity are locked out of the hub until the Market Admin restructures the company.
+                    Consolidated equity is <span className="font-mono text-destructive">{formatCompactUSD((team.equity ?? 0) * 1000)}</span>. Teams
+                    with negative equity are locked out until the facilitator restructures the company.
                   </p>
                 </div>
-              ) : account ? (
+              ) : isRegistered(team.id) ? (
                 <ReturningForm key={team.id} teamId={team.id} />
               ) : (
                 <SetupForm key={team.id} teamId={team.id} />

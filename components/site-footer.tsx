@@ -12,6 +12,7 @@ export function SiteFooter() {
         <nav aria-label="Legal" className="flex items-center gap-4">
           <Link href="/privacy" className="hover:text-foreground hover:underline">Privacy Policy</Link>
           <Link href="/terms" className="hover:text-foreground hover:underline">Terms of Service</Link>
+          <Link href="/admin" className="hover:text-foreground hover:underline">Admin Portal</Link>
         </nav>
       </div>
     </footer>

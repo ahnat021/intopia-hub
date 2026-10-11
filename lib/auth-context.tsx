@@ -1,136 +1,60 @@
 "use client"
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
+import { createContext, useCallback, useContext, useMemo, type ReactNode } from "react"
 import { useHub } from "@/lib/hub-store"
-import { TEAM_BY_ID, isReservedTeam, updateTeamContact, type Team } from "@/lib/mock-data"
-
-/**
- * Simulated team authentication for the prototype. Accounts and the active session
- * live in sessionStorage so they survive reloads within the tab — this is NOT secure auth.
- */
-
-const ACCOUNTS_KEY = "intopia-hub:accounts:v2"
-const SESSION_KEY = "intopia-hub:session:v2"
-
-export interface TeamAccount {
-  teamId: string
-  pin: string
-  whatsapp: string
-  email: string
-}
-
-export type SignInResult = "ok" | "bad-pin" | "no-account" | "bankrupt" | "banned"
+import * as authActions from "@/lib/actions/auth-actions"
+import type { Team } from "@/lib/domain"
+import type { ActionResult } from "@/lib/hub-types"
 
 type AuthStatus = "loading" | "signedOut" | "signedIn"
 
 interface AuthValue {
   status: AuthStatus
   team: Team | null
-  findAccount: (teamId: string) => TeamAccount | undefined
-  register: (account: TeamAccount) => void
-  signIn: (teamId: string, pin: string) => SignInResult
-  signOut: () => void
+  isAdmin: boolean
+  isRegistered: (teamId: string) => boolean
+  register: (input: authActions.RegisterInput) => Promise<ActionResult>
+  signIn: (teamId: string, pin: string) => Promise<ActionResult>
+  adminSignIn: (email: string, password: string) => Promise<ActionResult>
+  completeAdminSetup: (email: string, code: string, password: string) => Promise<ActionResult>
+  signOut: () => Promise<void>
 }
-
-/** Two pre-registered teams so a reviewer can switch between both sides of a deal. */
-export const DEMO_ACCOUNTS: Record<string, TeamAccount> = {
-  t07: { teamId: "t07", pin: "1234", whatsapp: "+1 629 1611", email: "team7@intopia.trade" },
-  t18: { teamId: "t18", pin: "1234", whatsapp: "+49 846 5714", email: "team18@intopia.trade" },
-}
-
-function readStorage<T>(key: string, fallback: T): T {
-  try {
-    const raw = window.sessionStorage.getItem(key)
-    return raw ? (JSON.parse(raw) as T) : fallback
-  } catch {
-    return fallback
-  }
-}
-
-function writeStorage(key: string, value: unknown) {
-  try {
-    if (value === null) window.sessionStorage.removeItem(key)
-    else window.sessionStorage.setItem(key, JSON.stringify(value))
-  } catch {
-    // Storage can be unavailable (private mode / sandboxed iframe); in-memory state still works.
-  }
-}
-
-export const isBankrupt = (teamId: string) => (TEAM_BY_ID[teamId]?.equity ?? 0) < 0
 
 const AuthContext = createContext<AuthValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { bannedIds, submitKyc } = useHub()
-  const [status, setStatus] = useState<AuthStatus>("loading")
-  const [accounts, setAccounts] = useState<Record<string, TeamAccount>>(DEMO_ACCOUNTS)
-  const [teamId, setTeamId] = useState<string | null>(null)
+  const { viewer, teamById, loading, refresh } = useHub()
 
-  useEffect(() => {
-    const stored = { ...DEMO_ACCOUNTS, ...readStorage<Record<string, TeamAccount>>(ACCOUNTS_KEY, {}) }
-    for (const a of Object.values(stored)) updateTeamContact(a.teamId, a.whatsapp, a.email)
-    const sessionId = readStorage<string | null>(SESSION_KEY, null)
-    setAccounts(stored)
-    if (sessionId && stored[sessionId] && !isBankrupt(sessionId) && !isReservedTeam(sessionId)) {
-      setTeamId(sessionId)
-      setStatus("signedIn")
-    } else {
-      setStatus("signedOut")
+  const withRefresh = useCallback(
+    async (p: Promise<ActionResult>) => {
+      try {
+        const result = await p
+        if (result.ok) await refresh()
+        return result
+      } catch {
+        return { ok: false, error: "Network error. Please try again." } as ActionResult
+      }
+    },
+    [refresh],
+  )
+
+  const value = useMemo<AuthValue>(() => {
+    const team = viewer?.role === "team" ? (teamById[viewer.teamId] ?? null) : null
+    return {
+      status: loading ? "loading" : team ? "signedIn" : "signedOut",
+      team,
+      isAdmin: viewer?.role === "admin",
+      isRegistered: (id) => (teamById[id]?.kyc ?? "unregistered") !== "unregistered",
+      register: (input) => withRefresh(authActions.registerTeam(input)),
+      signIn: (id, pin) => withRefresh(authActions.signInTeam(id, pin)),
+      adminSignIn: (email, password) => withRefresh(authActions.adminSignIn(email, password)),
+      completeAdminSetup: (email, code, password) => withRefresh(authActions.completeAdminSetup(email, code, password)),
+      signOut: async () => {
+        await authActions.signOut()
+        await refresh()
+      },
     }
-  }, [])
-
-  const startSession = useCallback((account: TeamAccount) => {
-    updateTeamContact(account.teamId, account.whatsapp, account.email)
-    writeStorage(SESSION_KEY, account.teamId)
-    setTeamId(account.teamId)
-    setStatus("signedIn")
-  }, [])
-
-  const findAccount = useCallback((id: string) => accounts[id], [accounts])
-
-  const register = useCallback(
-    (account: TeamAccount) => {
-      if (isBankrupt(account.teamId) || isReservedTeam(account.teamId)) return
-      setAccounts((prev) => {
-        const next = { ...prev, [account.teamId]: account }
-        writeStorage(ACCOUNTS_KEY, next)
-        return next
-      })
-      submitKyc(account.teamId, account.email)
-      startSession(account)
-    },
-    [startSession, submitKyc],
-  )
-
-  const signIn = useCallback(
-    (id: string, pin: string): SignInResult => {
-      if (isReservedTeam(id)) return "no-account"
-      if (isBankrupt(id)) return "bankrupt"
-      if (bannedIds.includes(id)) return "banned"
-      const account = accounts[id]
-      if (!account) return "no-account"
-      if (account.pin !== pin) return "bad-pin"
-      startSession(account)
-      return "ok"
-    },
-    [accounts, bannedIds, startSession],
-  )
-
-  const signOut = useCallback(() => {
-    writeStorage(SESSION_KEY, null)
-    setTeamId(null)
-    setStatus("signedOut")
-  }, [])
-
-  const activeTeamBanned = teamId !== null && bannedIds.includes(teamId)
-  useEffect(() => {
-    if (activeTeamBanned) signOut()
-  }, [activeTeamBanned, signOut])
-
-  const value = useMemo<AuthValue>(
-    () => ({ status, team: teamId ? (TEAM_BY_ID[teamId] ?? null) : null, findAccount, register, signIn, signOut }),
-    [status, teamId, findAccount, register, signIn, signOut],
-  )
+  }, [loading, refresh, teamById, viewer, withRefresh])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

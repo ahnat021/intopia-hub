@@ -18,7 +18,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { cn } from "@/lib/utils"
 import { useHub } from "@/lib/hub-store"
 import { PRODUCT_INFO, formatUnits } from "@/lib/intopia-rules"
-import { TEAM_BY_ID, formatSimClock, teamLabel, whatsappHref, type Contract, type Listing, type Team } from "@/lib/mock-data"
+import { TEAM_BY_ID, formatClock, teamLabel, whatsappHref, type Contract, type Listing, type Team } from "@/lib/domain"
 import { DeliveryLabel, StatusBadge, TypeLabel } from "../listing-badges"
 import { ContractCard } from "./contract-card"
 import { ContractForm } from "./contract-form"
@@ -39,15 +39,23 @@ function ContactCard({ team }: { team: Team }) {
     <div className="grid gap-2 sm:grid-cols-2">
       <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 p-2">
         <MessageCircle className="size-4 shrink-0 text-emerald-400" aria-hidden />
-        <a href={whatsappHref(team.whatsapp)} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate font-mono text-xs hover:underline">{team.whatsapp}</a>
-        <Button variant="ghost" size="icon-xs" onClick={() => copy(team.whatsapp, "WhatsApp number")} aria-label={`Copy ${team.name} WhatsApp number`}>
+        {team.whatsapp ? (
+          <a href={whatsappHref(team.whatsapp)} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate font-mono text-xs hover:underline">{team.whatsapp}</a>
+        ) : (
+          <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">No WhatsApp on file</span>
+        )}
+        <Button variant="ghost" size="icon-xs" disabled={!team.whatsapp} onClick={() => team.whatsapp && copy(team.whatsapp, "WhatsApp number")} aria-label={`Copy ${team.name} WhatsApp number`}>
           <Copy aria-hidden />
         </Button>
       </div>
       <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 p-2">
         <Mail className="size-4 shrink-0 text-sky-400" aria-hidden />
-        <a href={`mailto:${team.email}`} className="min-w-0 flex-1 truncate font-mono text-xs hover:underline">{team.email}</a>
-        <Button variant="ghost" size="icon-xs" onClick={() => copy(team.email, "Email")} aria-label={`Copy ${team.name} email`}>
+        {team.email ? (
+          <a href={`mailto:${team.email}`} className="min-w-0 flex-1 truncate font-mono text-xs hover:underline">{team.email}</a>
+        ) : (
+          <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">Email hidden</span>
+        )}
+        <Button variant="ghost" size="icon-xs" disabled={!team.email} onClick={() => team.email && copy(team.email, "Email")} aria-label={`Copy ${team.name} email`}>
           <Copy aria-hidden />
         </Button>
       </div>
@@ -161,13 +169,13 @@ export function NegotiationSheet({ listing, threadId, viewer, onSelectThread, on
                     if (m.from === "system" || (!contract && !offer))
                       return (
                         <p key={m.id} className="mx-auto max-w-[90%] rounded-full bg-secondary/70 px-3 py-1 text-center text-xs text-muted-foreground">
-                          {m.text} <span className="font-mono opacity-70">{formatSimClock(m.at)}</span>
+                          {m.text} <span className="font-mono opacity-70">{formatClock(m.at)}</span>
                         </p>
                       )
                     const mine = m.from === viewer.id
                     return (
                       <div key={m.id} className={cn("flex w-80 max-w-[92%] flex-col gap-1", mine ? "self-end items-end" : "self-start items-start")}>
-                        <span className="text-[11px] text-muted-foreground">{teamLabel(m.from)} · {formatSimClock(m.at)}</span>
+                        <span className="text-[11px] text-muted-foreground">{teamLabel(m.from)} · {formatClock(m.at)}</span>
                         <div className="w-full">
                           {contract && (
                             <ContractCard
@@ -176,8 +184,8 @@ export function NegotiationSheet({ listing, threadId, viewer, onSelectThread, on
                               locked={lockedOut}
                               closed={closed}
                               canRate={!hasRated(contract.id) && (contract.initiatorId === viewer.id || contract.counterpartyId === viewer.id)}
-                              onFinalize={(id) => {
-                                const result = finalizeContract(id, viewer.id)
+                              onFinalize={async (id) => {
+                                const result = await finalizeContract(id)
                                 if (result) setTimeout(() => setRatingFor(result), 900)
                                 return result
                               }}
@@ -191,7 +199,7 @@ export function NegotiationSheet({ listing, threadId, viewer, onSelectThread, on
                               viewerId={viewer.id}
                               closed={closed}
                               onRespond={(accept) => {
-                                respondMr(offer.id, viewer.id, accept)
+                                void respondMr(offer.id, accept)
                                 toast[accept ? "success" : "info"](accept ? "Market research accepted" : "Market research declined")
                               }}
                             />
@@ -284,7 +292,7 @@ export function NegotiationSheet({ listing, threadId, viewer, onSelectThread, on
             <AlertDialogAction
               className="bg-destructive text-white hover:bg-destructive/90"
               onClick={() => {
-                if (threadId) rejectAndClose(threadId, viewer.id)
+                if (threadId) void rejectAndClose(threadId)
                 setComposer(null)
                 toast.info("Negotiation closed")
               }}

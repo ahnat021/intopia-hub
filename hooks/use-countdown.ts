@@ -2,26 +2,24 @@
 
 import { useEffect, useState } from "react"
 
-/**
- * Counts down from `initialSeconds` against a wall-clock deadline so the
- * display never drifts when ticks are throttled (e.g. background tabs).
- */
-export function useCountdown(initialSeconds: number) {
-  const [remaining, setRemaining] = useState(initialSeconds)
+/** Seconds remaining until an absolute epoch-ms deadline; null when no deadline is scheduled. */
+export function useDeadline(deadlineAt: number | null) {
+  const [remaining, setRemaining] = useState<number | null>(null)
 
   useEffect(() => {
-    const deadline = Date.now() + initialSeconds * 1000
+    if (deadlineAt == null) {
+      setRemaining(null)
+      return
+    }
     let timeoutId: ReturnType<typeof setTimeout>
-
     const tick = () => {
-      const msLeft = Math.max(0, deadline - Date.now())
+      const msLeft = Math.max(0, deadlineAt - Date.now())
       setRemaining(Math.ceil(msLeft / 1000))
       if (msLeft > 0) timeoutId = setTimeout(tick, msLeft % 1000 || 1000)
     }
-
     tick()
     return () => clearTimeout(timeoutId)
-  }, [initialSeconds])
+  }, [deadlineAt])
 
   return remaining
 }

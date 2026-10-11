@@ -24,7 +24,7 @@ import {
   type ListingRegion,
   type Product,
 } from "@/lib/intopia-rules"
-import type { ListingType } from "@/lib/mock-data"
+import type { ListingType } from "@/lib/domain"
 import type { NewListingInput } from "@/lib/hub-store"
 
 const TYPE_OPTIONS: { value: ListingType; label: string }[] = [

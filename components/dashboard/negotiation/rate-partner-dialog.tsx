@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import { useHub } from "@/lib/hub-store"
-import { RATING_TAGS, teamLabel, type Contract, type RatingTag } from "@/lib/mock-data"
+import { RATING_TAGS, teamLabel, type Contract, type RatingTag } from "@/lib/domain"
 
 const STAR_LABELS = ["Poor", "Below expectations", "Acceptable", "Great partner", "Outstanding"]
 

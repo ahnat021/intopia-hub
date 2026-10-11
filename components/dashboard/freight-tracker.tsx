@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Plane, Ship, Truck } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { CURRENT_PERIOD, NEXT_PERIOD, formatUnits, productCode, type DeliveryMode } from "@/lib/intopia-rules"
-import { teamLabel, type Shipment } from "@/lib/mock-data"
+import { teamLabel, type Shipment } from "@/lib/domain"
 
 const MODES: { value: DeliveryMode; label: string; sub: string; icon: typeof Plane }[] = [
   { value: "AIR", label: "Airfreight", sub: `Arriving this period · ${CURRENT_PERIOD}`, icon: Plane },

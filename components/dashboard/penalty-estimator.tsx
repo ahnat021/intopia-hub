@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { formatUSD, formatUnits, productCode } from "@/lib/intopia-rules"
-import { teamLabel, type Contract } from "@/lib/mock-data"
+import { teamLabel, type Contract } from "@/lib/domain"
 
 /** Team 99 (Market Admin) fills shortfalls at a premium and charges the defaulting seller. */
 const EXPEDITE_PREMIUM = 0.35

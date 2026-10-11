@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import { OPERATING_AREAS, formatCompactUSD, type Region } from "@/lib/intopia-rules"
-import { MR_ITEMS, teamLabel, type MrOffer, type Team } from "@/lib/mock-data"
+import { MR_ITEMS, teamLabel, type MrOffer, type Team } from "@/lib/domain"
 import type { MrOfferDraft } from "@/lib/hub-store"
 
 interface FormProps {
@@ -22,7 +22,7 @@ interface FormProps {
 
 export function MarketResearchForm({ threadId, viewer, counterparty, onSubmit, onCancel }: FormProps) {
   const [itemId, setItemId] = useState(String(MR_ITEMS[0].id))
-  const [area, setArea] = useState<Region>(counterparty.region)
+  const [area, setArea] = useState<Region>(counterparty.region ?? viewer.region ?? "North America")
   const [price, setPrice] = useState("40")
   const [ack, setAck] = useState(false)
   const [submitted, setSubmitted] = useState(false)

@@ -4,7 +4,8 @@ import { useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } 
 import { Popover as PopoverPrimitive } from "radix-ui"
 import { Check, ChevronsUpDown, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { PUBLIC_TEAMS, TEAM_BY_ID, isReservedTeam, type Team } from "@/lib/mock-data"
+import { isOperator, type Team } from "@/lib/domain"
+import { useHub } from "@/lib/hub-store"
 
 interface Props {
   value: string | null
@@ -23,7 +24,7 @@ function matches(team: Team, q: string) {
   if (!q) return true
   const num = q.match(/^(?:team\s*|t)?(\d{1,2})$/)
   if (num) return String(team.number).startsWith(String(Number(num[1])))
-  return `${team.name} ${team.company} ${team.region}`.toLowerCase().includes(q)
+  return `${team.name} ${team.company ?? ""} ${team.region ?? ""}`.toLowerCase().includes(q)
 }
 
 /** Searchable dropdown over the full 75-team roster with keyboard navigation. */
@@ -33,12 +34,13 @@ export function TeamCombobox({ value, onChange, id, placeholder = "Select a team
   const [active, setActive] = useState(0)
   const listId = useId()
   const listRef = useRef<HTMLUListElement>(null)
-  const selected = value && !isReservedTeam(value) ? TEAM_BY_ID[value] : null
+  const { teams, teamById } = useHub()
+  const selected = value ? (teamById[value] ?? null) : null
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return PUBLIC_TEAMS.filter((t) => matches(t, q))
-  }, [query])
+    return teams.filter((t) => matches(t, q))
+  }, [query, teams])
 
   const choose = (team: Team) => {
     if (isDisabled?.(team)) return
@@ -97,9 +99,17 @@ export function TeamCombobox({ value, onChange, id, placeholder = "Select a team
         >
           {selected ? (
             <>
-              <span className="flex size-6 shrink-0 items-center justify-center rounded bg-primary/15 font-mono text-xs font-bold text-primary">{selected.number}</span>
+              <span
+                className={cn(
+                  "flex size-6 shrink-0 items-center justify-center rounded font-mono text-xs font-bold",
+                  isOperator(selected.id) ? "operator-chip" : "bg-primary/15 text-primary",
+                )}
+              >
+                {selected.number}
+              </span>
               <span className="min-w-0 flex-1 truncate">
-                {selected.name} <span className="text-muted-foreground">· {selected.company}</span>
+                {selected.name}
+                {selected.company && <span className="text-muted-foreground"> · {selected.company}</span>}
               </span>
             </>
           ) : (
@@ -151,10 +161,23 @@ export function TeamCombobox({ value, onChange, id, placeholder = "Select a team
                     disabled && "cursor-not-allowed opacity-50",
                   )}
                 >
-                  <span className="flex size-6 shrink-0 items-center justify-center rounded bg-secondary font-mono text-xs font-semibold">{t.number}</span>
-                  <span className="min-w-0 flex-1 truncate">
-                    {t.company} <span className="text-xs text-muted-foreground">· {t.region}</span>
+                  <span
+                    className={cn(
+                      "flex size-6 shrink-0 items-center justify-center rounded font-mono text-xs font-semibold",
+                      isOperator(t.id) ? "operator-chip" : "bg-secondary",
+                    )}
+                  >
+                    {t.number}
                   </span>
+                  <span className="min-w-0 flex-1 truncate">
+                    {t.name}
+                    {t.company ? (
+                      <span className="text-xs text-muted-foreground"> · {t.company}</span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground"> · Open slot</span>
+                    )}
+                  </span>
+                  {isOperator(t.id) && <span className="text-[10px] font-bold uppercase tracking-wider text-gold">Hub Operator</span>}
                   {renderMeta?.(t)}
                   {t.id === value && <Check className="size-4 text-primary" aria-hidden />}
                 </li>
