@@ -1,12 +1,14 @@
 import type { Metadata, Viewport } from "next"
 import Image from "next/image"
-import { Geist, Geist_Mono } from "next/font/google"
+import { Cinzel, Geist, Geist_Mono } from "next/font/google"
+import { DonationGate } from "@/components/donation-gate"
 import { Providers } from "@/components/providers"
 import { TeamMarquee } from "@/components/team-marquee"
 import "./globals.css"
 
 const geistSans = Geist({ subsets: ["latin"], variable: "--font-geist-sans" })
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono" })
+const cinzel = Cinzel({ subsets: ["latin"], weight: ["600", "700"], variable: "--font-cinzel" })
 
 export const metadata: Metadata = {
   title: "Intopia Hub | B2B Marketplace & Contract Hub",
@@ -25,14 +27,16 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={`bg-background ${geistSans.variable} ${geistMono.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`bg-background ${geistSans.variable} ${geistMono.variable} ${cinzel.variable}`}>
       <body className="font-sans">
         <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
           <Image src="/images/globe-network.png" alt="" fill priority sizes="100vw" className="hub-backdrop object-cover object-top" />
         </div>
         <Providers>
-          <TeamMarquee />
-          {children}
+          <DonationGate>
+            <TeamMarquee />
+            {children}
+          </DonationGate>
         </Providers>
       </body>
     </html>

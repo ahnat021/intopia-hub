@@ -19,7 +19,10 @@ export interface Team {
   /** Consolidated equity in $K, set by the facilitator. Below zero means bankruptcy. */
   equity: number | null
   kyc: KycStatus
+  /** True once the team has signed the rules & liability waiver. */
   certified: boolean
+  waiverName?: string | null
+  waiverAt?: number | null
   banned: boolean
   registeredAt: number | null
 }
@@ -180,7 +183,7 @@ export function topTag(s: TeamStats | undefined): RatingTag | null {
 
 export type ActivityKind = "listing" | "deal" | "partnership" | "license" | "contract" | "announcement" | "fine"
 
-export const FINE_REASONS = ["Contract Breach", "Late Delivery", "Transfer Pricing Violation", "Misrepresentation", "Unsportsmanlike Conduct"] as const
+export const FINE_REASONS = ["Administrative Penalty", "Contract Breach", "Late Delivery", "Transfer Pricing Violation", "Misrepresentation", "Unsportsmanlike Conduct"] as const
 export type FineReason = (typeof FINE_REASONS)[number]
 
 export interface Fine {
@@ -222,6 +225,8 @@ export interface Announcement {
   title: string
   body: string
   at: number
+  /** "admin" or the professor's team id. */
+  author?: string | null
 }
 
 export interface PartnerPair {
@@ -255,33 +260,43 @@ export const OPERATOR_TEAM_ID = teamIdFor(25)
 export const isOperator = (teamId: string | null | undefined) => teamId === OPERATOR_TEAM_ID
 
 /**
+ * Professor Tim trades like a team and may also post announcements, set the
+ * game calendar and issue administrative penalties. He is not a hub admin.
+ */
+export const PROFESSOR_TEAM_ID = "prof"
+export const PROFESSOR_NAME = "Professor Tim"
+export const isProfessor = (teamId: string | null | undefined) => teamId === PROFESSOR_TEAM_ID
+
+const emptySeat = (id: string, number: number, name: string): Team => ({
+  id,
+  number,
+  name,
+  company: null,
+  region: null,
+  whatsapp: null,
+  email: null,
+  equity: null,
+  kyc: "unregistered",
+  certified: false,
+  banned: false,
+  registeredAt: null,
+})
+
+/**
  * Live roster registry, refreshed from Supabase on every snapshot so the many
  * components that only need a team label can stay synchronous.
  */
 export const TEAM_BY_ID: Record<string, Team> = {}
 
-/** The 75 seats always exist; live rows overlay registration status onto them. */
+/** Professor Tim plus the 75 seats always exist; live rows overlay registration status onto them. */
 export function fullRoster(teams: Team[]): Team[] {
   const byId = new Map(teams.map((t) => [t.id, t]))
-  return Array.from({ length: TEAM_COUNT }, (_, i) => {
+  const professor = byId.get(PROFESSOR_TEAM_ID) ?? emptySeat(PROFESSOR_TEAM_ID, 0, PROFESSOR_NAME)
+  const seats = Array.from({ length: TEAM_COUNT }, (_, i) => {
     const id = teamIdFor(i + 1)
-    return (
-      byId.get(id) ?? {
-        id,
-        number: i + 1,
-        name: `Team ${i + 1}`,
-        company: null,
-        region: null,
-        whatsapp: null,
-        email: null,
-        equity: null,
-        kyc: "unregistered",
-        certified: false,
-        banned: false,
-        registeredAt: null,
-      }
-    )
+    return byId.get(id) ?? emptySeat(id, i + 1, `Team ${i + 1}`)
   })
+  return [professor, ...seats]
 }
 
 export function setTeamRegistry(teams: Team[]) {
@@ -289,6 +304,7 @@ export function setTeamRegistry(teams: Team[]) {
 }
 
 export function teamLabel(teamId: string) {
+  if (teamId === PROFESSOR_TEAM_ID) return PROFESSOR_NAME
   return TEAM_BY_ID[teamId]?.name ?? (teamId.startsWith("t") ? `Team ${Number(teamId.slice(1))}` : teamId)
 }
 

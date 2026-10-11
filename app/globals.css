@@ -84,6 +84,7 @@ html:not(.dark) {
   --animate-marquee: marquee 40s linear infinite;
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-serif: var(--font-cinzel), ui-serif, Georgia, serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -200,6 +201,30 @@ html:not(.dark) .hub-backdrop {
   border: 1px solid color-mix(in oklch, var(--gold) 55%, transparent);
   background: color-mix(in oklch, var(--gold) 9%, transparent);
   box-shadow: inset 0 0 24px color-mix(in oklch, var(--gold) 12%, transparent);
+}
+
+/* Team 25 rows in the live ledger: gold wash, pulsing glow and a gilded name. */
+.operator-row {
+  position: relative;
+  background: linear-gradient(90deg, color-mix(in oklch, var(--gold) 16%, transparent), color-mix(in oklch, var(--gold) 4%, transparent) 70%);
+  box-shadow: inset 3px 0 0 var(--gold-bright), inset 0 0 0 1px color-mix(in oklch, var(--gold) 45%, transparent);
+  animation: operator-glow 2.8s ease-in-out infinite;
+}
+.operator-row:hover {
+  background: linear-gradient(90deg, color-mix(in oklch, var(--gold) 22%, transparent), color-mix(in oklch, var(--gold) 8%, transparent) 70%);
+}
+.operator-name {
+  color: var(--gold-bright);
+  text-shadow: 0 0 10px color-mix(in oklch, var(--gold-bright) 70%, transparent), 0 0 22px color-mix(in oklch, var(--gold) 45%, transparent);
+}
+
+@keyframes operator-glow {
+  0%, 100% {
+    box-shadow: inset 3px 0 0 var(--gold-bright), inset 0 0 0 1px color-mix(in oklch, var(--gold) 40%, transparent), 0 0 10px color-mix(in oklch, var(--gold) 20%, transparent);
+  }
+  50% {
+    box-shadow: inset 3px 0 0 var(--gold-bright), inset 0 0 0 1px color-mix(in oklch, var(--gold) 75%, transparent), 0 0 26px color-mix(in oklch, var(--gold) 45%, transparent);
+  }
 }
 
 @keyframes operator-spin {

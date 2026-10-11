@@ -10,7 +10,8 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import { useDebouncedValue } from "@/hooks/use-debounced-value"
 import { GRADES, OPERATING_AREAS, PRODUCT_INFO, formatUnits } from "@/lib/intopia-rules"
-import { teamLabel, type Listing, type ListingType } from "@/lib/domain"
+import { isOperator, teamLabel, type Listing, type ListingType } from "@/lib/domain"
+import { Crown } from "lucide-react"
 import { DeliveryLabel, StatusBadge, TypeLabel } from "./listing-badges"
 
 const PAGE_SIZE = 8
@@ -150,12 +151,20 @@ export const LiveMarketplace = memo(function LiveMarketplace({ listings, viewerI
                 const mine = l.teamId === viewerId
                 const hasContract = contractListingIds.has(l.id)
                 const label = hasContract ? "View Contract" : mine ? "View Offers" : l.status === "CLOSED" ? "Closed" : "Negotiate"
+                const operator = isOperator(l.teamId)
                 return (
-                  <TableRow key={l.id} className={cn(l.isNew && "animate-row-flash", l.status === "CLOSED" && "opacity-60")}>
+                  <TableRow key={l.id} className={cn(l.isNew && "animate-row-flash", l.status === "CLOSED" && "opacity-60", operator && "operator-row")}>
                     <TableCell className="pl-5"><StatusBadge status={l.status} /></TableCell>
                     <TableCell><TypeLabel type={l.type} /></TableCell>
                     <TableCell className="whitespace-nowrap">
-                      <span className="font-medium">{teamLabel(l.teamId)}</span>
+                      {operator ? (
+                        <span className="operator-name inline-flex items-center gap-1.5 font-serif text-base font-bold tracking-wide">
+                          <Crown className="size-4" aria-hidden />
+                          {teamLabel(l.teamId)}
+                        </span>
+                      ) : (
+                        <span className="font-medium">{teamLabel(l.teamId)}</span>
+                      )}
                       {mine && <span className="ml-1.5 rounded bg-primary/20 px-1 py-0.5 text-[10px] font-semibold text-primary">YOU</span>}
                     </TableCell>
                     <TableCell className="max-w-56">

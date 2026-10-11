@@ -8,7 +8,10 @@ import {
   DEFAULT_SETTINGS,
   FINE_REASONS,
   MR_ITEMS,
+  PROFESSOR_NAME,
+  PROFESSOR_TEAM_ID,
   RATING_TAGS,
+  isProfessor,
   threadIdFor,
   type ActivityKind,
   type AiReview,
@@ -88,6 +91,7 @@ async function requireTeam(opts: { tradable?: boolean } = {}): Promise<ActionRes
   if (!team) return fail("Team not found.")
   if (team.banned) return fail("This team has been removed from the hub.")
   if (team.kyc !== "approved") return fail("Your account is awaiting KYC approval.")
+  if (opts.tradable && !team.certified) return fail("Sign the rules & liability waiver before trading.")
   if (opts.tradable && settings.tradingLocked) return fail("Contracts are locked for period processing.")
   return ok({ team: team as Team, settings })
 }
@@ -96,6 +100,17 @@ async function requireAdmin(): Promise<ActionResult<true>> {
   if (!isSupabaseConfigured()) return fail("The hub database is not connected yet.")
   const session = await getSession()
   return session?.role === "admin" ? ok(true) : fail("Administrator access required.")
+}
+
+/** Admins, or an approved Professor Tim. Professor powers are a strict subset of admin powers. */
+async function requireAdminOrProfessor(): Promise<ActionResult<{ actor: "admin" | "professor" }>> {
+  if (!isSupabaseConfigured()) return fail("The hub database is not connected yet.")
+  const session = await getSession()
+  if (session?.role === "admin") return ok({ actor: "admin" })
+  if (session?.role !== "team" || !isProfessor(session.teamId)) return fail("Only the hub administrator or Professor Tim can do this.")
+  const { data: team } = await db().from("teams").select("kyc, banned").eq("id", session.teamId).maybeSingle()
+  if (!team || team.banned || team.kyc !== "approved") return fail("Professor access is awaiting approval.")
+  return ok({ actor: "professor" })
 }
 
 async function threadForMember(threadId: string, teamId: string) {
@@ -239,7 +254,6 @@ export async function postListing(input: NewListingInput): Promise<ActionResult<
   const auth = await requireTeam({ tradable: true })
   if (!auth.ok) return auth
   const { team } = auth.data
-  if (!team.certified) return fail("Complete the Training Hub before posting.")
   if (!LISTING_TYPES.includes(input.type) || !["X", "Y"].includes(input.product)) return fail("Invalid listing.")
   if (!Number.isInteger(input.grade) || input.grade < 0 || input.grade > 20) return fail("Invalid grade.")
   const isTrade = input.type === "BUY" || input.type === "SELL"
@@ -445,10 +459,19 @@ export async function submitRating(draft: RatingDraft): Promise<ActionResult> {
   return error ? fail("You've already rated this partner.") : ok(undefined)
 }
 
-export async function certifyTraining(): Promise<ActionResult> {
+export async function signWaiver(signatoryName: string): Promise<ActionResult> {
   const auth = await requireTeam()
   if (!auth.ok) return auth
-  await db().from("teams").update({ certified: true }).eq("id", auth.data.team.id)
+  const name = String(signatoryName ?? "").trim().slice(0, 80)
+  if (name.length < 2) return fail("Type the full name of the team representative signing.")
+  const id = auth.data.team.id
+  const { error } = await db().from("teams").update({ certified: true, waiverName: name, waiverAt: Date.now() }).eq("id", id)
+  // Databases that haven't run the waiver migration yet still record the signature flag.
+  if (error) {
+    const { error: fallback } = await db().from("teams").update({ certified: true }).eq("id", id)
+    if (fallback) return fail("Could not record your signature. Try again.")
+  }
+  await logActivity("announcement", `${auth.data.team.name} signed the rules & liability waiver`, id)
   return ok(undefined)
 }
 
@@ -550,13 +573,28 @@ export async function rejectKyc(teamId: string): Promise<ActionResult> {
 }
 
 export async function issueFine(teamId: string, amountK: number, reason: FineReason): Promise<ActionResult> {
-  const auth = await requireAdmin()
+  const auth = await requireAdminOrProfessor()
   if (!auth.ok) return auth
   if (!finite(amountK, 1, 1e6) || !FINE_REASONS.includes(reason)) return fail("Invalid fine.")
   const { data: team } = await db().from("teams").select("name").eq("id", teamId).maybeSingle()
   if (!team) return fail("Team not found.")
-  await db().from("fines").insert({ id: newId("F"), teamId, amountK: Math.round(amountK), reason })
-  await logActivity("fine", `Regulatory fine: ${team.name} fined ${formatCompactUSD(Math.round(amountK) * 1000)} for ${reason}`, teamId)
+  const { error } = await db().from("fines").insert({ id: newId("F"), teamId, amountK: Math.round(amountK), reason })
+  if (error) return fail("Could not record the penalty.")
+  const by = auth.data.actor === "professor" ? `${PROFESSOR_NAME} issued an administrative penalty` : "Regulatory fine"
+  await logActivity("fine", `${by}: ${team.name} fined ${formatCompactUSD(Math.round(amountK) * 1000)} for ${reason}`, teamId)
+  return ok(undefined)
+}
+
+/** Professor Tim may set the period and deadline, but not lock or unlock trading. */
+export async function setCalendar(period: string, deadlineAt: number | null): Promise<ActionResult> {
+  const auth = await requireAdminOrProfessor()
+  if (!auth.ok) return auth
+  if (!/^P\d{1,2}$/.test(period)) return fail("Choose a period like P1–P12.")
+  if (deadlineAt !== null && !finite(deadlineAt, 0, 1e14)) return fail("Invalid deadline.")
+  const { error } = await db().from("hub_settings").update({ period, deadlineAt }).eq("id", 1)
+  if (error) return fail("Could not update the calendar.")
+  const who = auth.data.actor === "professor" ? PROFESSOR_NAME : "The Hub Administrator"
+  await logActivity("announcement", `${who} set the game calendar to ${period}${deadlineAt ? `, deadline ${new Date(deadlineAt).toLocaleString("en-CA")}` : ""}`)
   return ok(undefined)
 }
 
@@ -582,16 +620,26 @@ export async function updateSettings(patch: Partial<HubSettings>): Promise<Actio
 }
 
 export async function postAnnouncement(tag: AnnouncementTag, title: string, body: string): Promise<ActionResult> {
-  const auth = await requireAdmin()
+  const auth = await requireAdminOrProfessor()
   if (!auth.ok) return auth
   if (!["Official", "Reminder", "Community"].includes(tag) || title.trim().length < 3) return fail("Add a title.")
-  await db().from("announcements").insert({ id: newId("N"), tag, title: title.trim().slice(0, 120), body: body.trim().slice(0, 600) })
+  const row = { id: newId("N"), tag, title: title.trim().slice(0, 120), body: body.trim().slice(0, 600) }
+  const author = auth.data.actor === "professor" ? PROFESSOR_TEAM_ID : "admin"
+  const { error } = await db().from("announcements").insert({ ...row, author })
+  // Fallback for databases that haven't added the "author" column yet.
+  if (error) {
+    const { error: fallback } = await db().from("announcements").insert(row)
+    if (fallback) return fail("Could not post the announcement.")
+  }
   return ok(undefined)
 }
 
+/** Admins can remove any announcement; Professor Tim only his own. */
 export async function deleteAnnouncement(id: string): Promise<ActionResult> {
-  const auth = await requireAdmin()
+  const auth = await requireAdminOrProfessor()
   if (!auth.ok) return auth
-  await db().from("announcements").delete().eq("id", id)
-  return ok(undefined)
+  let query = db().from("announcements").delete().eq("id", id)
+  if (auth.data.actor === "professor") query = query.eq("author", PROFESSOR_TEAM_ID)
+  const { error } = await query
+  return error ? fail("Could not remove the announcement.") : ok(undefined)
 }
