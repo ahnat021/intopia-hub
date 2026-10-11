@@ -58,9 +58,6 @@ export function PendingVerification() {
         </ol>
 
         <div className="flex flex-col gap-2">
-          <Button asChild variant="secondary">
-            <Link href="/admin">Open admin console (demo reviewers)</Link>
-          </Button>
           <Button variant="ghost" onClick={signOut}>
             <LogOut aria-hidden />
             Sign out

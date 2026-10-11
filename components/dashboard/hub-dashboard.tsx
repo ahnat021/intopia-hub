@@ -7,7 +7,7 @@ import { OnboardingTour, useFirstVisitTour } from "./onboarding-tour"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
 import { useHub } from "@/lib/hub-store"
-import { TEAMS, type Contract, type Listing } from "@/lib/mock-data"
+import { ACTIVE_TEAMS, type Contract, type Listing } from "@/lib/mock-data"
 import { FeaturedOpportunities } from "./featured-opportunities"
 import { FreightTracker } from "./freight-tracker"
 import { HubHeader } from "./hub-header"
@@ -41,7 +41,7 @@ export function HubDashboard() {
     const active = listings.filter((l) => l.status !== "CLOSED")
     return {
       openListings: active.filter((l) => l.type === "BUY" || l.type === "SELL").length,
-      teams: TEAMS.filter((t) => t.equity >= 0).length,
+      teams: ACTIVE_TEAMS.length,
       partnerships: active.filter((l) => l.type === "PARTNERSHIP").length,
       rnd: active.filter((l) => l.type === "RND").length,
     }

@@ -1,7 +1,9 @@
 "use client"
 
-import { useState, type FormEvent } from "react"
+import { useState, useTransition, type FormEvent } from "react"
 import Image from "next/image"
+import { useRouter } from "next/navigation"
+import { verifyAdminPassword } from "@/lib/admin-auth"
 import { ArrowLeft, Ban, Globe2, KeyRound, Loader2, Lock, Mail, ShieldCheck, Wrench } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -10,7 +12,9 @@ import { Label } from "@/components/ui/label"
 import { TeamCombobox } from "@/components/team-combobox"
 import { isBankrupt, useAuth } from "@/lib/auth-context"
 import { useHub } from "@/lib/hub-store"
-import { TEAM_BY_ID, TEAM_COUNT } from "@/lib/mock-data"
+import { PUBLIC_TEAMS, TEAM_BY_ID } from "@/lib/mock-data"
+
+const TEAM_COUNT = PUBLIC_TEAMS.length
 import { formatCompactUSD } from "@/lib/intopia-rules"
 
 const PIN_RE = /^\d{4}$/
@@ -62,6 +66,63 @@ function ReturningForm({ teamId }: { teamId: string }) {
       <Button type="submit" size="lg" className="w-full">
         <KeyRound aria-hidden />
         Enter the Hub
+      </Button>
+    </form>
+  )
+}
+
+function AdminLoginForm({ onCancel }: { onCancel: () => void }) {
+  const router = useRouter()
+  const { setAdminAuthed } = useHub()
+  const [password, setPassword] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const [pending, startTransition] = useTransition()
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault()
+    if (!password) return setError("Enter the facilitator password.")
+    startTransition(async () => {
+      if (await verifyAdminPassword(password)) {
+        setAdminAuthed(true)
+        router.push("/admin")
+      } else {
+        setError("Access denied.")
+        setPassword("")
+      }
+    })
+  }
+
+  return (
+    <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Restricted</p>
+          <h2 className="text-xl font-bold">Facilitator access</h2>
+        </div>
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
+          <ArrowLeft aria-hidden />
+          Back
+        </Button>
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="admin-password">Password</Label>
+        <Input
+          id="admin-password"
+          type="password"
+          autoComplete="off"
+          autoFocus
+          value={password}
+          onChange={(e) => {
+            setPassword(e.target.value)
+            setError(null)
+          }}
+          aria-invalid={!!error}
+        />
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+      </div>
+      <Button type="submit" size="lg" className="w-full" disabled={pending}>
+        {pending ? <Loader2 className="animate-spin" aria-hidden /> : <ShieldCheck aria-hidden />}
+        {pending ? "Verifying..." : "Continue"}
       </Button>
     </form>
   )
@@ -206,6 +267,7 @@ export function LoginGate() {
   const { findAccount } = useAuth()
   const { approvedIds, kycQueue } = useHub()
   const [selected, setSelected] = useState<string | null>(null)
+  const [adminMode, setAdminMode] = useState(false)
   const team = selected ? TEAM_BY_ID[selected] : null
   const account = selected ? findAccount(selected) : undefined
 
@@ -238,7 +300,16 @@ export function LoginGate() {
             <TeamCombobox
               id="team-picker"
               value={selected}
-              onChange={setSelected}
+              onChange={(id) => {
+                setAdminMode(false)
+                setSelected(id)
+              }}
+              onCommand={(q) => {
+                if (q.toLowerCase() !== "admin") return false
+                setSelected(null)
+                setAdminMode(true)
+                return true
+              }}
               renderMeta={(t) =>
                 t.equity < 0 ? (
                   <span className="text-[10px] font-semibold uppercase text-destructive">Bankrupt</span>
@@ -266,7 +337,9 @@ export function LoginGate() {
         </section>
 
         <section aria-live="polite" className="flex flex-col justify-center gap-5 p-6 sm:p-8">
-          {!team ? (
+          {adminMode ? (
+            <AdminLoginForm onCancel={() => setAdminMode(false)} />
+          ) : !team ? (
             <div className="flex flex-col items-center gap-3 text-center text-muted-foreground">
               <Lock className="size-8" aria-hidden />
               <p className="text-sm">Choose a team to sign in or complete first-time setup.</p>
