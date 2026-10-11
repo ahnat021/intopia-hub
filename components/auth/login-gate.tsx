@@ -1,31 +1,21 @@
 "use client"
 
-import { useMemo, useState, type FormEvent } from "react"
+import { useState, type FormEvent } from "react"
 import Image from "next/image"
-import { ArrowLeft, BadgeCheck, Ban, Globe2, KeyRound, Lock, Mail, MessageCircle, ShieldCheck } from "lucide-react"
+import { ArrowLeft, Ban, Globe2, KeyRound, Loader2, Lock, Mail, ShieldCheck, Wrench } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { cn } from "@/lib/utils"
+import { TeamCombobox } from "@/components/team-combobox"
 import { isBankrupt, useAuth } from "@/lib/auth-context"
-import { TEAMS, TEAM_BY_ID, teamIdFor } from "@/lib/mock-data"
+import { useHub } from "@/lib/hub-store"
+import { TEAM_BY_ID, TEAM_COUNT } from "@/lib/mock-data"
 import { formatCompactUSD } from "@/lib/intopia-rules"
 
 const PIN_RE = /^\d{4}$/
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
-const PHONE_RE = /^\+\d[\d\s-]{6,17}$/
-
-function resolveTeamId(query: string) {
-  const q = query.trim().toLowerCase()
-  if (!q) return null
-  const num = q.match(/^(?:team\s*|t)?(\d{1,2})$/)
-  if (num) {
-    const id = teamIdFor(Number(num[1]))
-    return TEAM_BY_ID[id] ? id : null
-  }
-  return TEAMS.find((t) => t.company.toLowerCase() === q || t.name.toLowerCase() === q)?.id ?? null
-}
+const DEV_BYPASS_CODE = "123456"
 
 function PinInput({ id, value, onChange, autoFocus }: { id: string; value: string; onChange: (v: string) => void; autoFocus?: boolean }) {
   return (
@@ -77,56 +67,108 @@ function ReturningForm({ teamId }: { teamId: string }) {
   )
 }
 
+type SetupStep = "details" | "sending" | "verify"
+
 function SetupForm({ teamId }: { teamId: string }) {
   const { register } = useAuth()
+  const team = TEAM_BY_ID[teamId]
+  const [step, setStep] = useState<SetupStep>("details")
   const [pin, setPin] = useState("")
   const [confirm, setConfirm] = useState("")
   const [email, setEmail] = useState("")
-  const [whatsapp, setWhatsapp] = useState("")
   const [sentCode, setSentCode] = useState<string | null>(null)
   const [code, setCode] = useState("")
-  const [verifiedEmail, setVerifiedEmail] = useState<string | null>(null)
+  const [codeError, setCodeError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
 
-  const emailVerified = verifiedEmail !== null && verifiedEmail === email.trim().toLowerCase()
   const errors = {
     pin: !PIN_RE.test(pin) ? "PIN must be exactly 4 digits." : null,
     confirm: confirm !== pin ? "PINs do not match." : null,
-    email: !EMAIL_RE.test(email.trim()) ? "Enter a valid email address." : !emailVerified ? "Verify this email to continue." : null,
-    whatsapp: !PHONE_RE.test(whatsapp.trim()) ? "Use international format, e.g. +1 416 555 0142." : null,
+    email: !EMAIL_RE.test(email.trim()) ? "Enter a valid email address." : null,
   }
   const show = (key: keyof typeof errors) => submitted && errors[key]
 
-  const sendCode = () => {
-    if (!EMAIL_RE.test(email.trim())) {
-      setSubmitted(true)
-      return
-    }
-    const generated = String(Math.floor(100000 + Math.random() * 900000))
-    setSentCode(generated)
-    setCode("")
-    toast.info("Verification code sent", { description: `Demo inbox for ${email.trim()}: ${generated}` })
-  }
-
-  const verify = () => {
-    if (code.trim() === sentCode) {
-      setVerifiedEmail(email.trim().toLowerCase())
-      toast.success("Email verified")
-    } else {
-      toast.error("That code doesn't match")
-    }
-  }
-
-  const submit = (e: FormEvent) => {
+  const dispatchCode = (e: FormEvent) => {
     e.preventDefault()
     setSubmitted(true)
     if (Object.values(errors).some(Boolean)) return
-    register({ teamId, pin, email: email.trim(), whatsapp: whatsapp.trim() })
-    toast.success(`Welcome, ${TEAM_BY_ID[teamId].name}`)
+    setStep("sending")
+    const generated = String(Math.floor(100000 + Math.random() * 900000))
+    const toastId = toast.loading("Dispatching secure code...", { description: email.trim() })
+    window.setTimeout(() => {
+      setSentCode(generated)
+      setStep("verify")
+      toast.success("Secure code delivered", { id: toastId, description: `Simulated inbox for ${email.trim()}: ${generated}` })
+    }, 1400)
+  }
+
+  const verify = (e: FormEvent) => {
+    e.preventDefault()
+    if (code !== sentCode && code !== DEV_BYPASS_CODE) {
+      setCodeError("That code doesn't match. Check your inbox or resend.")
+      return
+    }
+    register({ teamId, pin, email: email.trim(), whatsapp: team.whatsapp })
+    toast.success("Email verified", { description: "Your account is now in the KYC review queue." })
+  }
+
+  if (step === "verify") {
+    return (
+      <form onSubmit={verify} className="flex flex-col gap-4" noValidate>
+        <div className="flex flex-col gap-1 rounded-lg border border-border bg-secondary/40 p-3 text-sm">
+          <p className="flex items-center gap-1.5 font-medium">
+            <Mail className="size-3.5 text-primary" aria-hidden />
+            Code sent to {email.trim()}
+          </p>
+          <p className="text-xs leading-relaxed text-muted-foreground">Enter the 6-digit code to verify ownership of this inbox.</p>
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="otp">6-digit verification code</Label>
+          <Input
+            id="otp"
+            autoFocus
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={6}
+            value={code}
+            onChange={(e) => {
+              setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+              setCodeError(null)
+            }}
+            placeholder="000000"
+            className="h-12 text-center font-mono text-xl tracking-[0.5em]"
+          />
+          {codeError && <p role="alert" className="text-xs text-destructive">{codeError}</p>}
+        </div>
+        <Button type="submit" size="lg" className="w-full" disabled={code.length !== 6}>
+          <ShieldCheck aria-hidden />
+          Verify &amp; submit for review
+        </Button>
+        <div className="flex items-center justify-between gap-2">
+          <Button type="button" variant="ghost" size="sm" onClick={() => { setStep("details"); setCode("") }}>
+            <ArrowLeft aria-hidden />
+            Edit details
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setCode(DEV_BYPASS_CODE)
+              setCodeError(null)
+            }}
+            className="border-dashed font-mono text-xs"
+          >
+            <Wrench aria-hidden />
+            Developer Bypass: {DEV_BYPASS_CODE}
+          </Button>
+        </div>
+      </form>
+    )
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
+    <form onSubmit={dispatchCode} className="flex flex-col gap-4" noValidate>
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-2">
           <Label htmlFor="new-pin">Set 4-digit PIN</Label>
@@ -144,57 +186,26 @@ function SetupForm({ teamId }: { teamId: string }) {
         <Label htmlFor="email" className="flex items-center gap-1.5">
           <Mail className="size-3.5 text-muted-foreground" aria-hidden />
           Team contact email
-          {emailVerified && (
-            <span className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-success">
-              <BadgeCheck className="size-3.5" aria-hidden /> Verified
-            </span>
-          )}
         </Label>
-        <div className="flex gap-2">
-          <Input id="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="team@university.edu" />
-          <Button type="button" variant="secondary" onClick={sendCode} disabled={emailVerified}>
-            {sentCode ? "Resend" : "Send code"}
-          </Button>
-        </div>
-        {sentCode && !emailVerified && (
-          <div className="flex gap-2">
-            <Input
-              aria-label="6-digit verification code"
-              inputMode="numeric"
-              maxLength={6}
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-              placeholder="6-digit code"
-              className="font-mono tracking-widest"
-            />
-            <Button type="button" onClick={verify} disabled={code.length !== 6}>Verify</Button>
-          </div>
-        )}
+        <Input id="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="team@university.edu" />
         {show("email") && <p className="text-xs text-destructive">{errors.email}</p>}
       </div>
 
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="whatsapp" className="flex items-center gap-1.5">
-          <MessageCircle className="size-3.5 text-muted-foreground" aria-hidden />
-          Primary WhatsApp number
-        </Label>
-        <Input id="whatsapp" type="tel" autoComplete="tel" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="+1 416 555 0142" />
-        {show("whatsapp") && <p className="text-xs text-destructive">{errors.whatsapp}</p>}
-      </div>
-
-      <Button type="submit" size="lg" className="w-full">
-        <ShieldCheck aria-hidden />
-        Create team account
+      <Button type="submit" size="lg" className="w-full" disabled={step === "sending"}>
+        {step === "sending" ? <Loader2 className="animate-spin" aria-hidden /> : <Mail aria-hidden />}
+        {step === "sending" ? "Dispatching secure code..." : "Send secure code"}
       </Button>
+      <p className="text-pretty text-xs leading-relaxed text-muted-foreground">
+        New accounts are reviewed by the Hub Administrator (KYC) before trading access is granted.
+      </p>
     </form>
   )
 }
 
 export function LoginGate() {
   const { findAccount } = useAuth()
-  const [query, setQuery] = useState("")
+  const { approvedIds, kycQueue } = useHub()
   const [selected, setSelected] = useState<string | null>(null)
-  const matched = useMemo(() => resolveTeamId(query), [query])
   const team = selected ? TEAM_BY_ID[selected] : null
   const account = selected ? findAccount(selected) : undefined
 
@@ -211,58 +222,47 @@ export function LoginGate() {
             </span>
             <div>
               <p className="text-lg font-bold leading-tight">Intopia <span className="text-primary">Hub</span></p>
-              <p className="text-xs text-muted-foreground">Period 4 · Trading open</p>
+              <p className="text-xs text-muted-foreground">Period 4 · Trading open · {TEAM_COUNT} teams</p>
             </div>
           </div>
           <div>
             <h1 id="pick-team" className="text-balance text-2xl font-bold tracking-tight">Select your team</h1>
             <p className="mt-1 text-pretty text-sm leading-relaxed text-muted-foreground">
-              Enter a Team ID or pick from the roster. Demo: <span className="font-mono text-foreground">Team 7</span> or{" "}
+              Search the roster by team number or company. Demo: <span className="font-mono text-foreground">Team 7</span> or{" "}
               <span className="font-mono text-foreground">Team 18</span>, PIN <span className="font-mono text-foreground">1234</span>.
             </p>
           </div>
 
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              if (matched) setSelected(matched)
-            }}
-            className="flex gap-2"
-          >
-            <Input aria-label="Team ID or name" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. Team 12 or 12" />
-            <Button type="submit" variant="secondary" disabled={!matched}>Continue</Button>
-          </form>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="team-picker">Team</Label>
+            <TeamCombobox
+              id="team-picker"
+              value={selected}
+              onChange={setSelected}
+              renderMeta={(t) =>
+                t.equity < 0 ? (
+                  <span className="text-[10px] font-semibold uppercase text-destructive">Bankrupt</span>
+                ) : approvedIds.includes(t.id) && findAccount(t.id) ? (
+                  <span className="text-[10px] font-semibold uppercase text-success">Active</span>
+                ) : kycQueue.some((r) => r.teamId === t.id) ? (
+                  <span className="text-[10px] font-semibold uppercase text-warning">Pending</span>
+                ) : null
+              }
+            />
+          </div>
 
-          <ul className="grid grid-cols-5 gap-2" aria-label="Team roster">
-            {TEAMS.map((t) => {
-              const bankrupt = t.equity < 0
-              const registered = !!findAccount(t.id)
-              return (
-                <li key={t.id}>
-                  <button
-                    type="button"
-                    onClick={() => setSelected(t.id)}
-                    aria-pressed={selected === t.id}
-                    aria-label={`${t.name}${registered ? ", registered" : ""}${bankrupt ? ", bankrupt" : ""}`}
-                    className={cn(
-                      "relative flex h-11 w-full items-center justify-center rounded-lg border font-mono text-sm font-semibold transition-colors",
-                      selected === t.id
-                        ? "border-primary bg-primary/20 text-foreground"
-                        : "border-border bg-secondary/60 text-muted-foreground hover:border-primary/50 hover:text-foreground",
-                      bankrupt && "text-destructive/80 line-through",
-                    )}
-                  >
-                    {t.number}
-                    {registered && <span aria-hidden className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-success" />}
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
-          <p className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-success" aria-hidden />Registered</span>
-            <span className="line-through">Bankrupt (equity &lt; 0)</span>
-          </p>
+          <dl className="grid grid-cols-3 gap-2 text-center">
+            {[
+              { label: "Teams", value: TEAM_COUNT },
+              { label: "Verified", value: approvedIds.length },
+              { label: "In review", value: kycQueue.length },
+            ].map((s) => (
+              <div key={s.label} className="rounded-lg border border-border bg-secondary/40 px-2 py-2.5">
+                <dt className="text-[11px] uppercase tracking-wider text-muted-foreground">{s.label}</dt>
+                <dd className="font-mono text-lg font-semibold">{s.value}</dd>
+              </div>
+            ))}
+          </dl>
         </section>
 
         <section aria-live="polite" className="flex flex-col justify-center gap-5 p-6 sm:p-8">

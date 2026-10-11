@@ -15,6 +15,7 @@ import {
   Store,
   Trophy,
   type LucideIcon,
+  Gavel,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
@@ -151,6 +152,7 @@ const ACTIVITY_META: Record<ActivityKind, { icon: LucideIcon; tone: string }> = 
   license: { icon: FlaskConical, tone: "bg-amber-500/15 text-amber-400" },
   contract: { icon: FileSignature, tone: "bg-primary/15 text-primary" },
   announcement: { icon: Megaphone, tone: "bg-rose-500/15 text-rose-400" },
+  fine: { icon: Gavel, tone: "bg-destructive/15 text-destructive" },
 }
 
 export const ActivityFeed = memo(function ActivityFeed({ activity }: { activity: ActivityLog[] }) {

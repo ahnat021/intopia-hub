@@ -26,6 +26,7 @@ import { TEAMS, teamLabel, type Contract, type ContractStatus } from "@/lib/mock
 import { formatCompactUSD, formatUSD, productCode } from "@/lib/intopia-rules"
 import { cn } from "@/lib/utils"
 import { OverrideDialog } from "./override-dialog"
+import { FinesPanel, KycQueuePanel } from "./compliance-panels"
 
 const ADMIN_PASSCODE = "INTOPIA-ADMIN"
 
@@ -107,7 +108,7 @@ function AdminGate({ onSuccess }: { onSuccess: () => void }) {
 }
 
 function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
-  const { contracts, bannedIds, toggleBan, adminApprove, adminDelete, adminOverride, stats } = useHub()
+  const { contracts, bannedIds, toggleBan, adminApprove, adminDelete, adminOverride, stats, kycQueue } = useHub()
   const [filter, setFilter] = useState<LedgerFilter>("ALL")
   const [teamQuery, setTeamQuery] = useState("")
   const [editing, setEditing] = useState<Contract | null>(null)
@@ -171,11 +172,16 @@ function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
 
       <main className="mx-auto flex max-w-[1440px] flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
         <section aria-label="Summary" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <SummaryTile label="Pending signature" value={String(counts.AWAITING)} tone="amber" />
+          <SummaryTile label="Pending KYC / signature" value={`${kycQueue.length} / ${counts.AWAITING}`} tone="amber" />
           <SummaryTile label="Finalized contracts" value={String(counts.FINALIZED)} tone="emerald" />
           <SummaryTile label="Finalized value" value={formatCompactUSD(finalizedValue)} />
           <SummaryTile label="Teams banned" value={String(bannedIds.length)} tone={bannedIds.length ? "rose" : undefined} />
         </section>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <KycQueuePanel />
+          <FinesPanel />
+        </div>
 
         <div className="grid gap-6 xl:grid-cols-12">
           <section aria-labelledby="ledger-title" className="flex min-w-0 flex-col rounded-xl border border-border bg-card/90 backdrop-blur-sm xl:col-span-8">

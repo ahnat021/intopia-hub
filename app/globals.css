@@ -73,6 +73,7 @@ html:not(.dark) {
 }
 
 @theme inline {
+  --animate-marquee: marquee 40s linear infinite;
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
   --color-background: var(--background);
@@ -101,7 +102,16 @@ html:not(.dark) {
 
   --animate-row-flash: row-flash 2.4s ease-out;
 
-  @keyframes row-flash {
+  @keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes row-flash {
     0% {
       background-color: color-mix(in oklch, var(--primary) 22%, transparent);
     }

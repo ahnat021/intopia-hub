@@ -178,7 +178,31 @@ export function topTag(s: TeamStats | undefined): RatingTag | null {
   return best
 }
 
-export type ActivityKind = "listing" | "deal" | "partnership" | "license" | "contract" | "announcement"
+export type ActivityKind = "listing" | "deal" | "partnership" | "license" | "contract" | "announcement" | "fine"
+
+export const FINE_REASONS = ["Contract Breach", "Late Delivery", "Transfer Pricing Violation", "Misrepresentation", "Unsportsmanlike Conduct"] as const
+export type FineReason = (typeof FINE_REASONS)[number]
+
+export interface Fine {
+  id: string
+  teamId: string
+  amountK: number
+  reason: FineReason
+  at: number
+}
+
+export interface KycRequest {
+  teamId: string
+  email: string
+  at: number
+}
+
+export interface AiReview {
+  score: number
+  feeUSD: number
+  warnings: string[]
+  strengths: string[]
+}
 
 export interface ActivityLog {
   id: string
@@ -236,13 +260,28 @@ const COMPANIES = [
   "Kestrel Micro", "Beacon Industries", "Tidewater Co.", "Ember Circuits", "Granite Logistics",
 ]
 
+const NAME_ROOTS = [
+  "Arcadia", "Basalt", "Cinder", "Delta", "Equinox", "Falcon", "Glacier", "Harbor", "Indigo", "Juniper",
+  "Keystone", "Lattice", "Monarch", "Nimbus", "Onyx", "Prism", "Quarry", "Redwood", "Sable", "Titan",
+  "Umbra", "Vanguard", "Willow", "Xenon", "Yukon",
+]
+const NAME_SUFFIXES = ["Systems", "Industries", "Holdings"]
+
+export const TEAM_COUNT = 75
+
+const COMPANY_NAMES = [
+  ...COMPANIES,
+  ...NAME_SUFFIXES.flatMap((suffix, s) => NAME_ROOTS.map((root, r) => (s === 0 ? `${root} ${suffix}` : `${NAME_ROOTS[(r + s * 7) % NAME_ROOTS.length]} ${suffix}`))),
+].slice(0, TEAM_COUNT)
+
 const DIAL_CODE: Record<Region, string> = { "North America": "+1", Europe: "+49", China: "+86" }
 
 export const teamIdFor = (n: number) => `t${String(n).padStart(2, "0")}`
 
-export const BANKRUPT_TEAM_ID = teamIdFor(25)
+/** Team 25 runs the hub, so the bankruptcy demo uses another roster slot. */
+export const BANKRUPT_TEAM_ID = teamIdFor(61)
 
-export const TEAMS: Team[] = COMPANIES.map((company, i) => {
+export const TEAMS: Team[] = COMPANY_NAMES.map((company, i) => {
   const n = i + 1
   const region = OPERATING_AREAS[i % 3]
   return {
@@ -253,7 +292,7 @@ export const TEAMS: Team[] = COMPANIES.map((company, i) => {
     region,
     whatsapp: `${DIAL_CODE[region]} ${300 + ((n * 47) % 600)} ${1000 + ((n * 1373) % 9000)}`,
     email: `team${n}@intopia.trade`,
-    equity: n === 25 ? -184 : 1400 + ((n * 613) % 2600),
+    equity: n === 61 ? -184 : 1400 + ((n * 613) % 2600),
   }
 })
 
