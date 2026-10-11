@@ -24,7 +24,7 @@ language sql stable set search_path = '' as $$ select (extract(epoch from now())
 -- 1. teams (parent of almost everything)
 create table if not exists public.teams (
   "id" text primary key,
-  "number" int not null unique check ("number" between 1 and 75),
+  "number" int not null unique check ("number" between 0 and 75),
   "name" text not null,
   "company" text,
   "region" text check ("region" in ('North America', 'Europe', 'China')),
@@ -34,8 +34,15 @@ create table if not exists public.teams (
   "kyc" text not null default 'unregistered' check ("kyc" in ('unregistered', 'pending', 'approved', 'rejected')),
   "certified" boolean not null default false,
   "banned" boolean not null default false,
-  "registeredAt" bigint
+  "registeredAt" bigint,
+  "waiverName" text,
+  "waiverAt" bigint
 );
+-- Upgrades for databases created by an earlier version of this script.
+alter table public.teams add column if not exists "waiverName" text;
+alter table public.teams add column if not exists "waiverAt" bigint;
+alter table public.teams drop constraint if exists "teams_number_check";
+alter table public.teams add constraint "teams_number_check" check ("number" between 0 and 75);
 
 -- 2. team_credentials ("teamId" text -> teams.id text)
 create table if not exists public.team_credentials (
@@ -198,8 +205,10 @@ create table if not exists public.announcements (
   "tag" text not null check ("tag" in ('Official', 'Reminder', 'Community')),
   "title" text not null,
   "body" text not null,
+  "author" text not null default 'admin',
   "at" bigint not null default public.now_ms()
 );
+alter table public.announcements add column if not exists "author" text not null default 'admin';
 
 -- 15. fines -> teams
 create table if not exists public.fines (
@@ -224,6 +233,10 @@ insert into public.hub_settings ("id") values (1) on conflict do nothing;
 
 insert into public.teams ("id", "number", "name")
 select 't' || lpad(n::text, 2, '0'), n, 'Team ' || n from generate_series(1, 75) as n
+on conflict do nothing;
+
+-- Professor Tim: game administrator seat (number 0, id 'prof')
+insert into public.teams ("id", "number", "name") values ('prof', 0, 'Professor Tim')
 on conflict do nothing;
 
 -- Lock down: RLS on, no policies, no anon/authenticated access
