@@ -1,8 +1,15 @@
 import type { DeliveryMode, ListingRegion, Product, Region } from "./intopia-rules"
+import { MR_CATALOG } from "./constants"
 
 export type { DeliveryMode, ListingRegion, Product, Region } from "./intopia-rules"
 
-export type ListingType = "BUY" | "SELL" | "PARTNERSHIP" | "RND"
+/** PARTNERSHIP and RND are legacy values kept only so older rows still render. */
+export type ListingType = "BUY" | "SELL" | "OTHER" | "PARTNERSHIP" | "RND"
+
+export interface TeamMember {
+  name: string
+  isLeader: boolean
+}
 export type ListingStatus = "OPEN" | "NEGOTIATING" | "PENDING_SIGNATURE" | "CLOSED"
 export type KycStatus = "unregistered" | "pending" | "approved" | "rejected"
 
@@ -25,6 +32,13 @@ export interface Team {
   waiverAt?: number | null
   banned: boolean
   registeredAt: number | null
+  team_members?: TeamMember[] | null
+  team_leader_name?: string | null
+  contact_email?: string | null
+  promo_code_used?: string | null
+  security_flag_count?: number | null
+  last_intrusion_reported_at?: string | null
+  login_locked_until?: number | null
 }
 
 export interface Listing {
@@ -78,6 +92,8 @@ export interface Contract {
   revision: number
   finalizedByAdmin?: boolean | null
   adminOverridden?: boolean | null
+  clearing_fee?: number | null
+  fee_waived?: boolean | null
 }
 
 export interface Thread {
@@ -111,12 +127,7 @@ export interface MrItem {
   description: string
 }
 
-export const MR_ITEMS: MrItem[] = [
-  { id: 81, label: "MR Item #81", description: "Competitor pricing & sales volume by area" },
-  { id: 82, label: "MR Item #82", description: "Industry market share by product" },
-  { id: 85, label: "MR Item #85", description: "Area demand forecast for next period" },
-  { id: 88, label: "MR Item #88", description: "Competitor grade & R&D positioning" },
-]
+export const MR_ITEMS: MrItem[] = MR_CATALOG.map((i) => ({ id: i.id, label: `MR #${i.id}`, description: i.title }))
 
 export interface MrOffer {
   id: string
@@ -246,8 +257,9 @@ export interface HubSettings {
 export const DEFAULT_SETTINGS: HubSettings = { period: "P1", tradingLocked: false, deadlineAt: null }
 
 export const LISTING_TYPE_LABEL: Record<ListingType, string> = {
-  BUY: "Buying",
-  SELL: "Selling",
+  BUY: "Buy",
+  SELL: "Sell",
+  OTHER: "Other",
   PARTNERSHIP: "Partnerships",
   RND: "R&D / Licensing",
 }

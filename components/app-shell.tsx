@@ -3,7 +3,6 @@
 import { LoginGate } from "@/components/auth/login-gate"
 import { PendingVerification } from "@/components/auth/pending-verification"
 import { HubDashboard } from "@/components/dashboard/hub-dashboard"
-import { DonationGate } from "@/components/donation-gate"
 import { useAuth } from "@/lib/auth-context"
 
 function Gate() {
@@ -15,9 +14,5 @@ function Gate() {
 }
 
 export function AppShell() {
-  return (
-    <DonationGate>
-      <Gate />
-    </DonationGate>
-  )
+  return <Gate />
 }

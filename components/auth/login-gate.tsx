@@ -3,7 +3,9 @@
 import { useState, useTransition, type FormEvent } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { ArrowLeft, Ban, Crown, KeyRound, Languages, Loader2, Lock, Mail, RotateCw, ShieldCheck } from "lucide-react"
+import { ArrowLeft, Ban, Crown, KeyRound, Languages, Loader2, Lock, Mail, RotateCw, ShieldAlert, ShieldCheck } from "lucide-react"
+import { reportNotMe } from "@/lib/actions/auth-actions"
+import { officialEmail } from "@/lib/constants"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -39,12 +41,12 @@ function PinInput({ id, value, onChange, autoFocus }: { id: string; value: strin
   )
 }
 
-export async function requestCode(email: string, purpose: "team-register" | "admin-setup") {
+export async function requestCode(email: string, purpose: "team-register" | "admin-setup", teamId?: string) {
   try {
     const res = await fetch("/api/auth/send-code", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, purpose }),
+      body: JSON.stringify({ email, purpose, teamId }),
     })
     const body = (await res.json().catch(() => ({}))) as { error?: string }
     if (res.ok) return null
@@ -102,12 +104,13 @@ type SetupStep = "details" | "verify"
 
 function SetupForm({ teamId }: { teamId: string }) {
   const { register } = useAuth()
+  const { teamById } = useHub()
   const { t } = useI18n()
   const [step, setStep] = useState<SetupStep>("details")
   const [company, setCompany] = useState("")
   const [region, setRegion] = useState<Region | "">("")
   const [whatsapp, setWhatsapp] = useState("")
-  const [email, setEmail] = useState("")
+  const email = officialEmail(teamById[teamId]?.number ?? 0)
   const [pin, setPin] = useState("")
   const [confirm, setConfirm] = useState("")
   const [code, setCode] = useState("")
@@ -119,7 +122,6 @@ function SetupForm({ teamId }: { teamId: string }) {
     company: company.trim().length < 2 ? "Enter your company name." : null,
     region: !region ? "Choose your home region." : null,
     whatsapp: !PHONE_RE.test(whatsapp.trim()) ? "Enter a valid WhatsApp number." : null,
-    email: !EMAIL_RE.test(email.trim()) ? "Enter a valid email address." : null,
     pin: !PIN_RE.test(pin) ? "PIN must be exactly 4 digits." : null,
     confirm: confirm !== pin ? "PINs do not match." : null,
   }
@@ -127,11 +129,22 @@ function SetupForm({ teamId }: { teamId: string }) {
 
   const send = () =>
     startTransition(async () => {
-      const failure = await requestCode(email.trim(), "team-register")
+      const failure = await requestCode(email, "team-register", teamId)
       if (failure) return setError(failure)
       setError(null)
       setStep("verify")
-      toast.success("Verification code sent", { description: email.trim() })
+      toast.success("Verification code sent", { description: email })
+    })
+
+  const notMe = () =>
+    startTransition(async () => {
+      const result = await reportNotMe(teamId)
+      if (!result.ok) return void toast.error(result.error)
+      toast.success("Unauthorized attempt reported", {
+        description: "The code was invalidated and logins for this team are locked for 10 minutes.",
+      })
+      setStep("details")
+      setCode("")
     })
 
   const dispatch = (e: FormEvent) => {
@@ -146,7 +159,7 @@ function SetupForm({ teamId }: { teamId: string }) {
     startTransition(async () => {
       let result: Awaited<ReturnType<typeof register>>
       try {
-        result = await register({ teamId, company: company.trim(), region, whatsapp: whatsapp.trim(), email: email.trim(), pin, code })
+        result = await register({ teamId, company: company.trim(), region, whatsapp: whatsapp.trim(), email, pin, code })
       } catch (error) {
         const message = `Registration failed: ${error instanceof Error ? error.message : "server error"}`
         toast.error(message)
@@ -163,7 +176,7 @@ function SetupForm({ teamId }: { teamId: string }) {
         <div className="flex flex-col gap-1 rounded-lg border border-border bg-secondary/50 p-3 text-sm">
           <p className="flex items-center gap-1.5 font-medium">
             <Mail className="size-3.5 text-primary" aria-hidden />
-            {t("setup.codeSent")} {email.trim()}
+            {t("setup.codeSent")} {email}
           </p>
           <p className="text-xs leading-relaxed text-muted-foreground">{t("setup.codeHint")}</p>
         </div>
@@ -199,6 +212,10 @@ function SetupForm({ teamId }: { teamId: string }) {
             {t("setup.resend")}
           </Button>
         </div>
+        <Button type="button" variant="destructive" className="h-auto w-full whitespace-normal py-2.5 text-left" onClick={notMe} disabled={pending}>
+          <ShieldAlert aria-hidden />
+          {"Not a member of this team? Report unauthorized login attempt ('Not Me')"}
+        </Button>
       </form>
     )
   }
@@ -239,8 +256,13 @@ function SetupForm({ teamId }: { teamId: string }) {
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="email">{t("setup.email")}</Label>
-          <Input id="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="team@university.edu" />
-          {show("email")}
+          <div className="relative">
+            <Lock className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
+            <Input id="email" type="email" value={email} readOnly disabled aria-describedby="email-lock-note" className="pl-9 font-mono" />
+          </div>
+          <p id="email-lock-note" className="text-xs text-muted-foreground">
+            Locked to your official INTOPIA simulation inbox.
+          </p>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">

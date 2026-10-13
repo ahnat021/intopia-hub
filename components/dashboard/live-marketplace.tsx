@@ -10,19 +10,20 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import { useDebouncedValue } from "@/hooks/use-debounced-value"
 import { GRADES, OPERATING_AREAS, PRODUCT_INFO, formatUnits } from "@/lib/intopia-rules"
-import { isOperator, teamLabel, type Listing, type ListingType } from "@/lib/domain"
-import { Crown } from "lucide-react"
+import { isOperator, type Listing, type ListingType } from "@/lib/domain"
+import { useI18n } from "@/lib/i18n"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { CounterpartyLabel, useCounterpartyText } from "@/components/hub/counterparty-label"
 import { DeliveryLabel, StatusBadge, TypeLabel } from "./listing-badges"
 
 const PAGE_SIZE = 8
 
 type Tab = "ALL" | ListingType
-const TABS: { value: Tab; label: string }[] = [
-  { value: "ALL", label: "All Listings" },
-  { value: "BUY", label: "Buying" },
-  { value: "SELL", label: "Selling" },
-  { value: "PARTNERSHIP", label: "Partnerships" },
-  { value: "RND", label: "R&D / Licensing" },
+const TABS: { value: Tab; label: string; labelFr: string; hint: string }[] = [
+  { value: "ALL", label: "All", labelFr: "Toutes", hint: "Every open listing on the marketplace." },
+  { value: "BUY", label: "Buy", labelFr: "Achats", hint: "Teams looking to purchase products." },
+  { value: "SELL", label: "Sell", labelFr: "Ventes", hint: "Teams offering products for sale." },
+  { value: "OTHER", label: "Other", labelFr: "Autre", hint: "Market Research cost-splits and any other offers." },
 ]
 
 interface Props {
@@ -42,6 +43,8 @@ export const LiveMarketplace = memo(function LiveMarketplace({ listings, viewerI
   const [grade, setGrade] = useState("ALL")
   const [page, setPage] = useState(1)
   const debounced = useDebouncedValue(query, 250)
+  const { locale } = useI18n()
+  const counterpartyText = useCounterpartyText()
 
   const filtered = useMemo(() => {
     const q = debounced.trim().toLowerCase()
@@ -50,7 +53,7 @@ export const LiveMarketplace = memo(function LiveMarketplace({ listings, viewerI
       if (region !== "ALL" && l.region !== region) return false
       if (grade !== "ALL" && String(l.grade) !== grade) return false
       if (!q) return true
-      return [l.title, l.notes, teamLabel(l.teamId), l.region, `${l.product}${l.grade}`, PRODUCT_INFO[l.product].kind]
+      return [l.title, l.notes, l.region, `${l.product}${l.grade}`, PRODUCT_INFO[l.product].kind]
         .join(" ")
         .toLowerCase()
         .includes(q)
@@ -82,7 +85,12 @@ export const LiveMarketplace = memo(function LiveMarketplace({ listings, viewerI
         <Tabs value={tab} onValueChange={(v) => { setTab(v as Tab); resetPage() }}>
           <TabsList className="h-auto w-full flex-wrap justify-start">
             {TABS.map((t) => (
-              <TabsTrigger key={t.value} value={t.value} className="flex-none">{t.label}</TabsTrigger>
+              <Tooltip key={t.value}>
+                <TooltipTrigger asChild>
+                  <TabsTrigger value={t.value} className="flex-none">{locale === "fr" ? t.labelFr : t.label}</TabsTrigger>
+                </TooltipTrigger>
+                <TooltipContent>{t.hint}</TooltipContent>
+              </Tooltip>
             ))}
           </TabsList>
         </Tabs>
@@ -93,7 +101,7 @@ export const LiveMarketplace = memo(function LiveMarketplace({ listings, viewerI
             <Input
               type="search"
               aria-label="Search listings"
-              placeholder="Search team, product code (e.g. Y4), notes…"
+              placeholder="Search product code (e.g. Y4), region, notes…"
               value={query}
               onChange={(e) => { setQuery(e.target.value); resetPage() }}
               className="pl-9"
@@ -127,7 +135,7 @@ export const LiveMarketplace = memo(function LiveMarketplace({ listings, viewerI
             <TableRow className="hover:bg-transparent">
               <TableHead className="pl-5">Status</TableHead>
               <TableHead>Type</TableHead>
-              <TableHead>Team</TableHead>
+              <TableHead>Counterparty</TableHead>
               <TableHead>Product</TableHead>
               <TableHead className="text-center">Grade</TableHead>
               <TableHead className="text-right">Quantity</TableHead>
@@ -157,15 +165,11 @@ export const LiveMarketplace = memo(function LiveMarketplace({ listings, viewerI
                     <TableCell className="pl-5"><StatusBadge status={l.status} /></TableCell>
                     <TableCell><TypeLabel type={l.type} /></TableCell>
                     <TableCell className="whitespace-nowrap">
-                      {operator ? (
-                        <span className="operator-name inline-flex items-center gap-1.5 font-serif text-base font-bold tracking-wide">
-                          <Crown className="size-4" aria-hidden />
-                          {teamLabel(l.teamId)}
-                        </span>
+                      {mine ? (
+                        <span className="rounded bg-primary/20 px-1.5 py-0.5 text-[11px] font-semibold text-primary">Your listing</span>
                       ) : (
-                        <span className="font-medium">{teamLabel(l.teamId)}</span>
+                        <CounterpartyLabel teamId={l.teamId} className={operator ? "operator-name" : undefined} />
                       )}
-                      {mine && <span className="ml-1.5 rounded bg-primary/20 px-1 py-0.5 text-[10px] font-semibold text-primary">YOU</span>}
                     </TableCell>
                     <TableCell className="max-w-56">
                       <p className="truncate text-sm font-medium">{l.type === "BUY" || l.type === "SELL" ? PRODUCT_INFO[l.product].name : l.title}</p>
@@ -185,7 +189,7 @@ export const LiveMarketplace = memo(function LiveMarketplace({ listings, viewerI
                         variant={hasContract ? "default" : "secondary"}
                         disabled={!hasContract && !mine && l.status === "CLOSED"}
                         onClick={() => onOpen(l)}
-                        aria-label={`${label}: ${l.title} by ${teamLabel(l.teamId)}`}
+                        aria-label={`${label}: ${l.title} by ${mine ? "you" : counterpartyText(l.teamId)}`}
                       >
                         {hasContract ? <FileSignature aria-hidden /> : <MessagesSquare aria-hidden />}
                         {label}

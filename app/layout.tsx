@@ -1,9 +1,8 @@
 import type { Metadata, Viewport } from "next"
 import Image from "next/image"
 import { Cinzel, Geist, Geist_Mono } from "next/font/google"
-import { DonationGate } from "@/components/donation-gate"
 import { Providers } from "@/components/providers"
-import { TeamMarquee } from "@/components/team-marquee"
+import { BootSplash } from "@/components/boot-splash"
 import "./globals.css"
 
 const geistSans = Geist({ subsets: ["latin"], variable: "--font-geist-sans" })
@@ -18,8 +17,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f4f6fa" },
-    { media: "(prefers-color-scheme: dark)", color: "#1b2230" },
+    { media: "(prefers-color-scheme: light)", color: "#F8FAFC" },
+    { media: "(prefers-color-scheme: dark)", color: "#070B14" },
   ],
   width: "device-width",
   initialScale: 1,
@@ -33,10 +32,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           <Image src="/images/globe-network.png" alt="" fill priority sizes="100vw" className="hub-backdrop object-cover object-top" />
         </div>
         <Providers>
-          <DonationGate>
-            <TeamMarquee />
-            {children}
-          </DonationGate>
+          <BootSplash />
+          {children}
         </Providers>
       </body>
     </html>

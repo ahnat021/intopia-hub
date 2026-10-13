@@ -3,6 +3,7 @@
 import type { ReactNode } from "react"
 import { Clock, Crown, Lock, LogOut, Repeat } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { cn } from "@/lib/utils"
 import { formatHMS, useDeadline } from "@/hooks/use-countdown"
 import { isOperator, type Team } from "@/lib/domain"
@@ -12,7 +13,7 @@ import { useI18n } from "@/lib/i18n"
 
 export function TopBar({ team, onSignOut, children }: { team: Team; onSignOut: () => void; children?: ReactNode }) {
   const { settings, lockedOut } = useHub()
-  const { t } = useI18n()
+  const { t, locale, toggle: toggleLocale } = useI18n()
   const remaining = useDeadline(settings.deadlineAt)
   const [h, m, s] = formatHMS(remaining ?? 0)
   const operator = isOperator(team.id)
@@ -69,7 +70,13 @@ export function TopBar({ team, onSignOut, children }: { team: Team; onSignOut: (
 
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {children}
-          <Button variant="outline" size="sm" onClick={onSignOut}>
+          <Button variant="outline" size="sm" onClick={toggleLocale} aria-label="Toggle language" className="font-mono text-xs">
+            <span className={locale === "en" ? "text-primary" : "text-muted-foreground"}>EN</span>
+            <span aria-hidden className="text-muted-foreground">|</span>
+            <span className={locale === "fr" ? "text-primary" : "text-muted-foreground"}>FR</span>
+          </Button>
+          <ThemeToggle />
+          <Button variant="outline" size="sm" onClick={onSignOut} aria-label="Switch team">
             <Repeat aria-hidden />
             <span className="hidden sm:inline">Switch Team</span>
             <span className="sr-only sm:hidden">Switch team</span>

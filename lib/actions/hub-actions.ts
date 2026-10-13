@@ -3,6 +3,7 @@
 import { db, isSupabaseConfigured } from "@/lib/supabaseClient"
 import { getSession } from "@/lib/server/session"
 import { newId } from "@/lib/server/security"
+import { clearingFee, promoActive } from "@/lib/constants"
 import { PRODUCT_INFO, formatCompactUSD, formatUnits, productCode } from "@/lib/intopia-rules"
 import {
   DEFAULT_SETTINGS,
@@ -332,7 +333,12 @@ export async function draftContract(draft: ContractDraft, parentId?: string): Pr
     parentId: parentId ?? null,
     revision,
   }
-  const { error } = await db().from("contracts").insert(contract)
+  const promoCode = (team as { promo_code_used?: string | null }).promo_code_used
+  const withFee: Contract = { ...contract, clearing_fee: clearingFee(totalValue, promoCode), fee_waived: promoActive(promoCode) }
+  let { error } = await db().from("contracts").insert(withFee)
+  // Fall back if migration 002 hasn't added the fee columns yet.
+  if (error && /clearing_fee|fee_waived/.test(error.message)) ({ error } = await db().from("contracts").insert(contract))
+  else if (!error) Object.assign(contract, withFee)
   if (error) return fail("Could not submit the contract.")
   await postMessage(thread.id, team.id, parentId ? `Counter-offer R${revision} submitted, replacing R${revision - 1}.` : `Proposal R${revision} submitted for signature.`, {
     contractId: contract.id,
