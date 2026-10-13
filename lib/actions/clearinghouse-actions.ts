@@ -219,8 +219,12 @@ async function wipeActivity(filter: { teamId?: string; since?: number }) {
   const since = filter.since ?? 0
   const ops: PromiseLike<unknown>[] = []
   if (t) {
+    // chat_messages stores teams as integers ("t25" -> 25).
+    const tNum = parseInt(t.replace(/\D/g, ""), 10)
+    if (Number.isInteger(tNum)) {
+      ops.push(d.from("chat_messages").delete().or(`sender_team.eq.${tNum},receiver_team.eq.${tNum}`))
+    }
     ops.push(
-      d.from("chat_messages").delete().or(`sender_team.eq.${t},receiver_team.eq.${t}`),
       d.from("team_ratings").delete().or(`fromTeam.eq.${t},toTeam.eq.${t}`),
       d.from("contracts").delete().or(`initiatorId.eq.${t},counterpartyId.eq.${t}`),
       d.from("threads").delete().or(`teamA.eq.${t},teamB.eq.${t}`),

@@ -2,15 +2,20 @@ import { NextResponse, type NextRequest } from "next/server"
 import { db } from "@/lib/supabaseClient"
 import { getSession } from "@/lib/server/session"
 import { CHAT_BUCKET, MAX_ATTACHMENT_BYTES, attachmentMime } from "@/lib/constants"
+import { teamIdFor } from "@/lib/domain"
 
 const ID = /^[\w-]{1,60}$/
 
 type DbError = { code?: string; message?: string; details?: string | null; hint?: string | null }
 
+// chat_messages stores teams as integers (25); the app uses ids like "t25".
+const toDbTeam = (teamId: string) => parseInt(teamId.replace(/\D/g, ""), 10)
+const fromDbTeam = (n: number | string) => teamIdFor(Number(n))
+
 type ChatRow = {
   id: string | number
-  sender_team: string
-  receiver_team: string
+  sender_team: number
+  receiver_team: number
   message_text: string | null
   created_at: string | number
   attachment_url: string | null
@@ -49,8 +54,8 @@ async function toMessage(d: ReturnType<typeof db>, m: ChatRow) {
   }
   return {
     id: String(m.id),
-    fromTeam: m.sender_team,
-    toTeam: m.receiver_team,
+    fromTeam: fromDbTeam(m.sender_team),
+    toTeam: fromDbTeam(m.receiver_team),
     body: m.message_text ?? "",
     createdAt: toMillis(m.created_at),
     attachmentUrl,
@@ -68,24 +73,35 @@ async function teamId() {
 export async function GET(req: NextRequest) {
   const me = await teamId()
   if (!me) return NextResponse.json({ error: "Sign in as a team." }, { status: 401 })
+  const meNum = toDbTeam(me)
+  if (!Number.isInteger(meNum)) return NextResponse.json({ error: "Invalid team session." }, { status: 400 })
   const other = req.nextUrl.searchParams.get("with")
   const d = db()
   if (!other) {
     const { data, error } = await d
       .from("chat_messages")
       .select("sender_team,receiver_team,created_at")
-      .or(`sender_team.eq.${me},receiver_team.eq.${me}`)
+      .or(`sender_team.eq.${meNum},receiver_team.eq.${meNum}`)
       .order("created_at", { ascending: false })
       .limit(500)
     if (error) return chatError("list partners", error)
-    const partners = [...new Set((data ?? []).map((m) => (m.sender_team === me ? m.receiver_team : m.sender_team)))]
+    const partners = [
+      ...new Set(
+        ((data ?? []) as Pick<ChatRow, "sender_team" | "receiver_team">[]).map((m) =>
+          fromDbTeam(Number(m.sender_team) === meNum ? m.receiver_team : m.sender_team),
+        ),
+      ),
+    ]
     return NextResponse.json({ partners })
   }
-  if (!ID.test(other)) return NextResponse.json({ error: "Invalid team." }, { status: 400 })
+  const otherNum = toDbTeam(other)
+  if (!ID.test(other) || !Number.isInteger(otherNum)) return NextResponse.json({ error: "Invalid team." }, { status: 400 })
   const { data, error } = await d
     .from("chat_messages")
     .select("*")
-    .or(`and(sender_team.eq.${me},receiver_team.eq.${other}),and(sender_team.eq.${other},receiver_team.eq.${me})`)
+    .or(
+      `and(sender_team.eq.${meNum},receiver_team.eq.${otherNum}),and(sender_team.eq.${otherNum},receiver_team.eq.${meNum})`,
+    )
     .order("created_at", { ascending: true })
     .limit(300)
   if (error) return chatError("load thread", error)
@@ -102,15 +118,18 @@ export async function POST(req: NextRequest) {
   const to = String(form.get("to") ?? "")
   const body = String(form.get("body") ?? "").trim().slice(0, 4000)
   const file = form.get("file")
-  if (!ID.test(to) || to === me) return NextResponse.json({ error: "Choose another team to message." }, { status: 400 })
+  const meNum = toDbTeam(me)
+  const toNum = toDbTeam(to)
+  if (!ID.test(to) || !Number.isInteger(meNum) || !Number.isInteger(toNum) || toNum === meNum)
+    return NextResponse.json({ error: "Choose another team to message." }, { status: 400 })
   if (!body && !(file instanceof File)) return NextResponse.json({ error: "Write a message or attach a file." }, { status: 400 })
 
   // A UUID fits both a uuid and a text id column.
   const id = crypto.randomUUID()
   const row: Record<string, unknown> = {
     id,
-    sender_team: me,
-    receiver_team: to,
+    sender_team: meNum,
+    receiver_team: toNum,
     message_text: body,
     created_at: new Date().toISOString(),
   }
