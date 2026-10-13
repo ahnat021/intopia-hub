@@ -27,7 +27,9 @@ export function Team25Hero() {
                     className="group flex w-20 flex-col items-center gap-1.5 text-center"
                   >
                     <span className="relative size-14 rounded-full ring-2 ring-border transition-all group-hover:ring-primary">
-                      <Image src={op.imageUrl} alt="" fill sizes="56px" className="rounded-full object-cover" />
+                      <span className="absolute inset-0 overflow-hidden rounded-full">
+                        <Image src={op.imageUrl} alt="" fill sizes="112px" className="origin-[50%_30%] scale-200 object-cover object-top" />
+                      </span>
                       <span
                         aria-hidden
                         className="absolute -right-0.5 -bottom-0.5 flex size-5 items-center justify-center rounded-sm bg-primary text-[10px] font-bold lowercase text-primary-foreground ring-2 ring-card"

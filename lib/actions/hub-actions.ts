@@ -573,6 +573,42 @@ export async function deleteListing(listingId: string): Promise<ActionResult> {
   return error ? fail("Could not remove the listing.") : ok(undefined)
 }
 
+/**
+ * Lets a team pull its own listing. Untouched listings are deleted outright; listings with
+ * negotiations are closed instead so counterparties keep their chat history. Pending or
+ * signed contracts block withdrawal because deleting the listing would cascade into them.
+ */
+export async function withdrawListing(listingId: string): Promise<ActionResult> {
+  const auth = await requireTeam()
+  if (!auth.ok) return auth
+  const { team } = auth.data
+  const { data: listing } = await db().from("listings").select("id, teamId, status").eq("id", listingId).maybeSingle()
+  if (!listing || listing.teamId !== team.id) return fail("Listing not found.")
+  if (listing.status === "CLOSED") return fail("This listing is already closed.")
+  const { count: liveContracts } = await db()
+    .from("contracts")
+    .select("id", { count: "exact", head: true })
+    .eq("listingId", listingId)
+    .in("status", ["AWAITING", "FINALIZED"])
+  if (liveContracts) return fail("A contract on this listing is pending or signed. Reject it in the negotiation first.")
+
+  const { data: threads } = await db().from("threads").select("id, closed").eq("listingId", listingId)
+  if (!threads?.length) {
+    const { error } = await db().from("listings").delete().eq("id", listingId).eq("teamId", team.id)
+    return error ? fail("Could not withdraw the listing.") : ok(undefined)
+  }
+  const openIds = threads.filter((t) => !t.closed).map((t) => t.id)
+  if (openIds.length) {
+    await Promise.all([
+      db().from("mr_offers").update({ status: "DECLINED" }).in("threadId", openIds).eq("status", "OFFERED"),
+      db().from("threads").update({ closed: true }).in("id", openIds),
+    ])
+    await Promise.all(openIds.map((id) => postMessage(id, "system", "The poster withdrew this listing. This negotiation is now closed.")))
+  }
+  const { error } = await db().from("listings").update({ status: "CLOSED" }).eq("id", listingId).eq("teamId", team.id)
+  return error ? fail("Could not withdraw the listing.") : ok(undefined)
+}
+
 export async function toggleBan(teamId: string): Promise<ActionResult> {
   const auth = await requireAdmin()
   if (!auth.ok) return auth
