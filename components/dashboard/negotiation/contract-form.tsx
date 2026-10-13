@@ -19,7 +19,9 @@ import {
   formatUSD,
   maxIntercompanyLoan,
   priceError,
+  priceWarning,
   quantityError,
+  quantityWarning,
   shipmentError,
   type DeliveryMode,
   type InventorySource,
@@ -85,6 +87,7 @@ export function ContractForm({ listing, threadId, viewer, counterparty, locked, 
     initial ? { cash: String(initial.cashPct), ar1: String(initial.ar1Pct), ar2: String(initial.ar2Pct) } : { cash: "50", ar1: "30", ar2: "20" },
   )
   const [submitted, setSubmitted] = useState(false)
+  const [confirmedWarnings, setConfirmedWarnings] = useState("")
 
   const provider = providerId === viewer.id ? viewer : counterparty
   const qty = Number(quantity)
@@ -95,7 +98,7 @@ export function ContractForm({ listing, threadId, viewer, counterparty, locked, 
 
   const errors: Record<string, string | null> = {
     quantity: kind === "PRODUCT_SALE" ? quantityError(qty) : null,
-    price: kind === "PRODUCT_SALE" ? priceError(product, grade, unitPrice) : null,
+    price: kind === "PRODUCT_SALE" ? priceError(unitPrice) : null,
     shipment: kind === "PRODUCT_SALE" ? shipmentError(source, delivery) : null,
     fee: kind === "PATENT_LICENSE" && !(Number(fee) > 0 && Number(fee) <= 5000) ? "License fee must be between $1K and $5,000K." : null,
     principal:
@@ -115,6 +118,12 @@ export function ContractForm({ listing, threadId, viewer, counterparty, locked, 
           : null,
   }
   const show = (key: string) => (submitted ? errors[key] : null)
+  const warnings = {
+    quantity: kind === "PRODUCT_SALE" ? quantityWarning(qty) : null,
+    price: kind === "PRODUCT_SALE" ? priceWarning(product, grade, unitPrice) : null,
+  }
+  const warningKey = [warnings.quantity, warnings.price].filter(Boolean).join("|")
+  const confirming = warningKey !== "" && confirmedWarnings === warningKey
 
   const totalValue =
     kind === "PRODUCT_SALE" ? (Number.isFinite(qty * unitPrice) ? qty * 1000 * unitPrice : 0) : kind === "PATENT_LICENSE" ? Number(fee) * 1000 : Number(principal) * 1000
@@ -123,6 +132,10 @@ export function ContractForm({ listing, threadId, viewer, counterparty, locked, 
     e.preventDefault()
     setSubmitted(true)
     if (locked || Object.values(errors).some(Boolean)) return
+    if (warningKey && confirmedWarnings !== warningKey) {
+      setConfirmedWarnings(warningKey)
+      return
+    }
     onSubmit({
       threadId,
       listingId: listing.id,
@@ -201,9 +214,11 @@ export function ContractForm({ listing, threadId, viewer, counterparty, locked, 
           <>
             <Field label="Quantity (thousand units)" htmlFor="cf-qty" error={show("quantity")}>
               <Input id="cf-qty" type="number" inputMode="decimal" step={0.5} value={quantity} onChange={(e) => setQuantity(e.target.value)} />
+              {warnings.quantity && <p role="status" className="text-xs text-warning">{warnings.quantity}</p>}
             </Field>
             <Field label={`Unit price ($) · avg cost $${averageCost(product, grade)}`} htmlFor="cf-price" error={show("price")}>
               <Input id="cf-price" type="number" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} />
+              {warnings.price && <p role="status" className="text-xs text-warning">{warnings.price}</p>}
             </Field>
             <Field label="Delivery mode">
               <Select value={delivery} onValueChange={(v) => setDelivery(v as DeliveryMode)}>
@@ -284,8 +299,8 @@ export function ContractForm({ listing, threadId, viewer, counterparty, locked, 
           <FeeSummary contractValue={totalValue} className="mr-auto w-full" />
           <Button type="button" variant="ghost" size="sm" onClick={onCancel}>Cancel</Button>
           <Button type="submit" size="sm" disabled={locked}>
-            <FileSignature aria-hidden />
-            {initial ? "Send counter-offer" : "Send proposal"}
+          <FileSignature aria-hidden />
+          {confirming ? "Send anyway" : initial ? "Send counter-offer" : "Send proposal"}
           </Button>
         </div>
       </div>

@@ -70,19 +70,31 @@ export function shipmentError(source: InventorySource, mode: DeliveryMode): stri
   return null
 }
 
-export function priceError(product: Product, grade: number, price: number, enforceCost = true): string | null {
+/** Blocks only prices that can't be recorded. Unusual-but-valid prices surface through `priceWarning`. */
+export function priceError(price: number): string | null {
+  if (!Number.isFinite(price) || price <= 0) return "Enter a unit price above $0."
+  return null
+}
+
+export function priceWarning(product: Product, grade: number, price: number, checkCost = true): string | null {
+  if (priceError(price)) return null
   const { min, max } = PRICE_BOUNDS[product]
-  if (!Number.isFinite(price) || price <= 0) return "Enter a unit price."
-  if (price < min || price > max) return `Product ${product} must be priced between $${min} and $${max} per unit.`
   const cost = averageCost(product, grade)
-  if (enforceCost && price <= cost)
-    return `Transfer price must exceed the average cost of goods ($${cost}/unit for ${product}${grade}) to avoid tax evasion penalties.`
+  if (checkCost && price <= cost)
+    return `At or below the average cost of goods ($${cost}/unit for ${product}${grade}). Transfer prices this low can trigger tax evasion penalties.`
+  if (price < min || price > max) return `Unusual price: Product ${product} typically trades between $${min} and $${max} per unit.`
   return null
 }
 
 export function quantityError(qty: number): string | null {
-  if (!Number.isFinite(qty) || qty < QTY_BOUNDS.min) return `Minimum quantity is ${QTY_BOUNDS.min}K units.`
-  if (qty > QTY_BOUNDS.max) return `Maximum quantity is ${QTY_BOUNDS.max.toLocaleString("en-US")}K units.`
+  if (!Number.isFinite(qty) || qty <= 0) return "Enter a quantity above 0."
+  return null
+}
+
+export function quantityWarning(qty: number): string | null {
+  if (quantityError(qty)) return null
+  if (qty < QTY_BOUNDS.min) return `Unusually small: most lots are at least ${QTY_BOUNDS.min}K units.`
+  if (qty > QTY_BOUNDS.max) return `Unusually large: lots above ${QTY_BOUNDS.max.toLocaleString("en-US")}K units are rare. Double-check the figure.`
   return null
 }
 

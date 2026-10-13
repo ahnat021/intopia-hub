@@ -169,7 +169,6 @@ export function HubDashboard() {
             </Tooltip>
           ))}
         </TabsList>
-        <p className="mt-2 text-xs text-muted-foreground">{WORKSPACES.find((w) => w.id === workspace)?.hint}</p>
 
         <TabsContent value="market" className="mt-4">
           <div className="grid gap-4 pb-8 lg:grid-cols-12 lg:gap-6">

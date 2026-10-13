@@ -1,6 +1,7 @@
 import { memo } from "react"
 import { FlaskConical, Handshake, Store, Users, type LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 export interface MetricsData {
   openListings: number
@@ -37,13 +38,19 @@ export const MetricsStrip = memo(function MetricsStrip({ data }: { data: Metrics
           )}
         >
           <div className="flex items-start justify-between gap-3">
-            <p className="text-pretty text-xs font-medium text-muted-foreground sm:text-sm">{label}</p>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <p tabIndex={0} className="cursor-help text-pretty text-xs font-medium text-muted-foreground sm:text-sm">
+                  {label}
+                </p>
+              </TooltipTrigger>
+              <TooltipContent>{hint}</TooltipContent>
+            </Tooltip>
             <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg transition-transform group-hover:scale-110", tone)}>
               <Icon className="size-4" aria-hidden />
             </span>
           </div>
           <p className="mt-2 font-mono text-3xl font-bold tabular-nums tracking-tight sm:text-4xl">{data[key]}</p>
-          <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
         </article>
       ))}
     </section>

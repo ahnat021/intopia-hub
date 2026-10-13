@@ -215,7 +215,13 @@ export async function getSnapshot(): Promise<HubSnapshot> {
     if (stats[l.teamId] && !stats[alias]) stats[alias] = { ...stats[l.teamId], teamId: alias }
     return { ...row, teamId: alias }
   })
-  const activity = ((activityRes.data ?? []) as { kind: string; teamId: string | null }[]).map((a) =>
+  // Hide "posted …" entries whose listing has since been withdrawn, closed or deleted (covers rows logged before cleanup existed).
+  const liveListingPosts = new Set(
+    ((listingsRes.data ?? []) as Listing[]).filter((l) => l.status !== "CLOSED").map((l) => `${l.teamId}|${listingPostMessage(l.title)}`),
+  )
+  const activity = ((activityRes.data ?? []) as { kind: string; teamId: string | null; message: string }[])
+    .filter((a) => !(["listing", "partnership", "license"].includes(a.kind) && a.message.startsWith(listingPostMessage("")) && !liveListingPosts.has(`${a.teamId}|${a.message}`)))
+    .map((a) =>
     !isAdmin && ["listing", "partnership", "license"].includes(a.kind) && a.teamId !== viewerTeamId ? { ...a, teamId: null } : a,
   )
 
@@ -275,7 +281,16 @@ export async function getSnapshot(): Promise<HubSnapshot> {
 
 /* ----------------------------- Team actions ----------------------------- */
 
-const LISTING_TYPES = ["BUY", "SELL", "PARTNERSHIP", "RND"]
+const LISTING_TYPES = ["BUY", "SELL", "OTHER", "PARTNERSHIP", "RND"]
+
+const listingPostMessage = (title: string) => `A verified counterparty posted ${title}`
+
+/** Escapes LIKE wildcards so team names are matched literally. */
+const likeLiteral = (s: string) => s.replace(/[\\%_]/g, (c) => `\\${c}`)
+
+async function removeListingActivity(teamId: string, title: string) {
+  await db().from("activity").delete().eq("teamId", teamId).in("kind", ["listing", "partnership", "license"]).eq("message", listingPostMessage(title))
+}
 
 export async function postListing(input: NewListingInput): Promise<ActionResult<Listing>> {
   const auth = await requireTeam({ tradable: true })
@@ -284,7 +299,8 @@ export async function postListing(input: NewListingInput): Promise<ActionResult<
   if (!LISTING_TYPES.includes(input.type) || !["X", "Y"].includes(input.product)) return fail("Invalid listing.")
   if (!Number.isInteger(input.grade) || input.grade < 0 || input.grade > 20) return fail("Invalid grade.")
   const isTrade = input.type === "BUY" || input.type === "SELL"
-  if (isTrade && (!finite(input.quantity, 0.001, 1e6) || !finite(input.unitPrice, 0.01, 1e6))) return fail("Enter a valid quantity and price.")
+  // Only reject impossible values; unusual-but-valid figures are warned about in the UI instead.
+  if (isTrade && (!finite(input.quantity, 0.001, 1e9) || !finite(input.unitPrice, 0.01, 1e9))) return fail("Quantity and price must be greater than zero.")
   const listing: Listing = {
     id: newId("L"),
     status: "OPEN",
@@ -302,8 +318,8 @@ export async function postListing(input: NewListingInput): Promise<ActionResult<
   }
   const { error } = await db().from("listings").insert(listing)
   if (error) return fail("Could not post the listing.")
-  const kind: ActivityKind = input.type === "PARTNERSHIP" ? "partnership" : input.type === "RND" ? "license" : "listing"
-  await logActivity(kind, `A verified counterparty posted ${listing.title}`, team.id)
+  const kind: ActivityKind = input.type === "PARTNERSHIP" || input.type === "OTHER" ? "partnership" : input.type === "RND" ? "license" : "listing"
+  await logActivity(kind, listingPostMessage(listing.title), team.id)
   return ok(listing)
 }
 
@@ -435,6 +451,14 @@ export async function rejectAndClose(threadId: string): Promise<ActionResult> {
     db().from("threads").update({ closed: true }).eq("id", threadId),
   ])
   await postMessage(threadId, "system", `${team.name} rejected the open terms and closed this negotiation.`)
+  // Drop the "sent … for signature" entries between these two teams so revoked offers leave the feed.
+  const names = await teamNames()
+  const otherId = thread.teamA === team.id ? thread.teamB : thread.teamA
+  const [me, them] = [likeLiteral(team.name), likeLiteral(label(names, otherId))]
+  await Promise.all([
+    db().from("activity").delete().eq("kind", "contract").like("message", `${me} sent ${them} a %`),
+    db().from("activity").delete().eq("kind", "contract").like("message", `${them} sent ${me} a %`),
+  ])
   const { count } = await db().from("threads").select("id", { count: "exact", head: true }).eq("listingId", thread.listingId).eq("closed", false)
   await db().from("listings").update({ status: count ? "NEGOTIATING" : "OPEN" }).eq("id", thread.listingId).neq("status", "CLOSED")
   return ok(undefined)
@@ -569,9 +593,12 @@ export async function adminOverride(contractId: string, patch: ContractOverride)
 export async function deleteListing(listingId: string): Promise<ActionResult> {
   const auth = await requireAdmin()
   if (!auth.ok) return auth
+  const { data: listing } = await db().from("listings").select("teamId, title").eq("id", listingId).maybeSingle()
   const { error } = await db().from("listings").delete().eq("id", listingId)
-  return error ? fail("Could not remove the listing.") : ok(undefined)
-}
+  if (error) return fail("Could not remove the listing.")
+  if (listing) await removeListingActivity(listing.teamId, listing.title)
+  return ok(undefined)
+  }
 
 /**
  * Lets a team pull its own listing. Untouched listings are deleted outright; listings with
@@ -582,7 +609,7 @@ export async function withdrawListing(listingId: string): Promise<ActionResult> 
   const auth = await requireTeam()
   if (!auth.ok) return auth
   const { team } = auth.data
-  const { data: listing } = await db().from("listings").select("id, teamId, status").eq("id", listingId).maybeSingle()
+  const { data: listing } = await db().from("listings").select("id, teamId, status, title").eq("id", listingId).maybeSingle()
   if (!listing || listing.teamId !== team.id) return fail("Listing not found.")
   if (listing.status === "CLOSED") return fail("This listing is already closed.")
   const { count: liveContracts } = await db()
@@ -595,7 +622,9 @@ export async function withdrawListing(listingId: string): Promise<ActionResult> 
   const { data: threads } = await db().from("threads").select("id, closed").eq("listingId", listingId)
   if (!threads?.length) {
     const { error } = await db().from("listings").delete().eq("id", listingId).eq("teamId", team.id)
-    return error ? fail("Could not withdraw the listing.") : ok(undefined)
+    if (error) return fail("Could not withdraw the listing.")
+    await removeListingActivity(team.id, listing.title)
+    return ok(undefined)
   }
   const openIds = threads.filter((t) => !t.closed).map((t) => t.id)
   if (openIds.length) {
@@ -606,7 +635,9 @@ export async function withdrawListing(listingId: string): Promise<ActionResult> 
     await Promise.all(openIds.map((id) => postMessage(id, "system", "The poster withdrew this listing. This negotiation is now closed.")))
   }
   const { error } = await db().from("listings").update({ status: "CLOSED" }).eq("id", listingId).eq("teamId", team.id)
-  return error ? fail("Could not withdraw the listing.") : ok(undefined)
+  if (error) return fail("Could not withdraw the listing.")
+  await removeListingActivity(team.id, listing.title)
+  return ok(undefined)
 }
 
 export async function toggleBan(teamId: string): Promise<ActionResult> {

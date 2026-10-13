@@ -19,7 +19,9 @@ import {
   PRODUCT_INFO,
   averageCost,
   priceError,
+  priceWarning,
   quantityError,
+  quantityWarning,
   type DeliveryMode,
   type ListingRegion,
   type Product,
@@ -38,6 +40,11 @@ function FieldError({ children }: { children?: string | null }) {
   return <p role="alert" className="text-xs text-destructive">{children}</p>
 }
 
+function FieldWarning({ children }: { children?: string | null }) {
+  if (!children) return null
+  return <p role="status" className="text-xs text-warning">{children}</p>
+}
+
 export function PostListingDialog({ teamId, locked, onPost }: { teamId: string; locked: boolean; onPost: (input: NewListingInput) => void }) {
   const [open, setOpen] = useState(false)
   const [type, setType] = useState<ListingType>("SELL")
@@ -50,20 +57,28 @@ export function PostListingDialog({ teamId, locked, onPost }: { teamId: string; 
   const [title, setTitle] = useState("")
   const [notes, setNotes] = useState("")
   const [submitted, setSubmitted] = useState(false)
+  const [confirmedWarnings, setConfirmedWarnings] = useState("")
 
   const isTrade = type === "BUY" || type === "SELL"
   const homeOfficeAllowed = type === "RND"
 
   const errors = {
     quantity: isTrade ? quantityError(Number(quantity)) : null,
-    price: isTrade ? priceError(product, grade, Number(price), type === "SELL") : null,
+    price: isTrade ? priceError(Number(price)) : null,
     title: !isTrade && title.trim().length < 4 ? "Give the opportunity a short title." : null,
     region: region === "Home Office" && !homeOfficeAllowed ? `The Home Office (${HOME_OFFICE.country}) handles ${HOME_OFFICE.allowed} — no manufacturing or sales.` : null,
     notes: notes.trim().length > 140 ? "Keep notes under 140 characters." : null,
   }
 
+  const warnings = {
+    quantity: isTrade ? quantityWarning(Number(quantity)) : null,
+    price: isTrade ? priceWarning(product, grade, Number(price), type === "SELL") : null,
+  }
+  const warningKey = [warnings.quantity, warnings.price].filter(Boolean).join("|")
+  const confirming = warningKey !== "" && confirmedWarnings === warningKey
+
   const reset = () => {
-    setQuantity(""); setPrice(""); setTitle(""); setNotes(""); setSubmitted(false)
+    setQuantity(""); setPrice(""); setTitle(""); setNotes(""); setSubmitted(false); setConfirmedWarnings("")
   }
 
   const changeType = (v: ListingType) => {
@@ -75,6 +90,11 @@ export function PostListingDialog({ teamId, locked, onPost }: { teamId: string; 
     e.preventDefault()
     setSubmitted(true)
     if (Object.values(errors).some(Boolean)) return
+    // Unusual values are allowed, but the poster must see the warning and submit again to confirm.
+    if (warningKey && confirmedWarnings !== warningKey) {
+      setConfirmedWarnings(warningKey)
+      return
+    }
     onPost({
       type,
       teamId,
@@ -105,7 +125,7 @@ export function PostListingDialog({ teamId, locked, onPost }: { teamId: string; 
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Post a listing</DialogTitle>
-          <DialogDescription>Listings are validated against the official Period 4 rules.</DialogDescription>
+          <DialogDescription>Unusual prices or quantities get a warning, but you can still post them.</DialogDescription>
         </DialogHeader>
 
         <form id="post-listing" onSubmit={submit} className="flex flex-col gap-4" noValidate>
@@ -153,11 +173,13 @@ export function PostListingDialog({ teamId, locked, onPost }: { teamId: string; 
                   <Label htmlFor="pl-qty">Quantity (thousand units)</Label>
                   <Input id="pl-qty" type="number" inputMode="decimal" min={0.5} step={0.5} value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="7.5" />
                   <FieldError>{err("quantity")}</FieldError>
+                  <FieldWarning>{warnings.quantity}</FieldWarning>
                 </div>
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="pl-price">Unit price ($)</Label>
                   <Input id="pl-price" type="number" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder={`${PRICE_BOUNDS[product].min}–${PRICE_BOUNDS[product].max}`} />
                   <FieldError>{err("price")}</FieldError>
+                  <FieldWarning>{warnings.price}</FieldWarning>
                 </div>
               </>
             )}
@@ -199,15 +221,23 @@ export function PostListingDialog({ teamId, locked, onPost }: { teamId: string; 
               <Info className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden />
               <span>
                 Avg. cost for {product}{grade} is <span className="font-mono text-foreground">${averageCost(product, grade)}</span>/unit.
-                {type === "SELL" ? " Sell prices must exceed it (transfer pricing rule)." : " Sellers cannot accept bids at or below it."}
+                {type === "SELL" ? " Selling at or below it risks a transfer pricing penalty." : " Sellers accepting bids at or below it risk a transfer pricing penalty."}
               </span>
+            </p>
+          )}
+
+          {confirming && (
+            <p role="alert" className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-xs leading-relaxed text-foreground">
+              This listing has unusual values (see the warnings above). You can still post it. Click <span className="font-semibold">Post anyway</span> to confirm, or edit the figures first.
             </p>
           )}
         </form>
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button type="submit" form="post-listing">Post listing</Button>
+          <Button type="submit" form="post-listing" variant={confirming ? "outline" : "default"}>
+            {confirming ? "Post anyway" : "Post listing"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
