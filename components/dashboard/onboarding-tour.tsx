@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ArrowLeft, ArrowRight, Compass, FileSignature, GitBranch, LayoutGrid, Lock, Microscope, Search, Star } from "lucide-react"
+import { ArrowLeft, ArrowRight, Compass, FileSignature, GitBranch, Languages, LayoutGrid, Lock, Microscope, Search, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
@@ -18,6 +18,7 @@ const STEPS = [
       { icon: LayoutGrid, text: "Browse listings from every team" },
       { icon: GitBranch, text: "Negotiate through structured proposals" },
       { icon: Lock, text: "Finalize binding digital contracts" },
+      { icon: Languages, text: "Prefer another language? Right-click the page and choose \"Translate\" in Google Chrome." },
     ],
   },
   {
