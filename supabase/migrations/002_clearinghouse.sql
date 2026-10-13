@@ -32,17 +32,17 @@ alter table public.contracts add column if not exists "fee_waived" boolean not n
 
 -- Free-form team-to-team chat with capped attachments.
 create table if not exists public.chat_messages (
-  "id" text primary key,
-  "fromTeam" text not null references public.teams("id") on delete cascade,
-  "toTeam" text not null references public.teams("id") on delete cascade,
-  "body" text not null default '',
-  "attachmentPath" text,
-  "attachmentName" text,
-  "attachmentSize" int check ("attachmentSize" is null or "attachmentSize" <= 2097152),
-  "attachmentMime" text,
-  "createdAt" bigint not null
+  id text primary key,
+  sender_team text not null references public.teams("id") on delete cascade,
+  receiver_team text not null references public.teams("id") on delete cascade,
+  message_text text not null default '',
+  attachment_url text,
+  attachment_name text,
+  attachment_type text,
+  attachment_size int check (attachment_size is null or attachment_size <= 2097152),
+  created_at timestamptz not null default now()
 );
-create index if not exists chat_messages_pair_idx on public.chat_messages ("fromTeam", "toTeam", "createdAt");
+create index if not exists chat_messages_pair_idx on public.chat_messages (sender_team, receiver_team, created_at);
 
 -- Ratings at any stage, one live rating per (rater, rated) pair.
 create table if not exists public.team_ratings (

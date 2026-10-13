@@ -186,7 +186,7 @@ const DELETABLE = {
   listings: "createdAt",
   contracts: "createdAt",
   threads: "updatedAt",
-  chat_messages: "createdAt",
+  chat_messages: "created_at",
   team_ratings: "createdAt",
   ratings: "at",
 } as const
@@ -220,7 +220,7 @@ async function wipeActivity(filter: { teamId?: string; since?: number }) {
   const ops: PromiseLike<unknown>[] = []
   if (t) {
     ops.push(
-      d.from("chat_messages").delete().or(`fromTeam.eq.${t},toTeam.eq.${t}`),
+      d.from("chat_messages").delete().or(`sender_team.eq.${t},receiver_team.eq.${t}`),
       d.from("team_ratings").delete().or(`fromTeam.eq.${t},toTeam.eq.${t}`),
       d.from("contracts").delete().or(`initiatorId.eq.${t},counterpartyId.eq.${t}`),
       d.from("threads").delete().or(`teamA.eq.${t},teamB.eq.${t}`),
@@ -228,7 +228,7 @@ async function wipeActivity(filter: { teamId?: string; since?: number }) {
     )
   } else {
     ops.push(
-      d.from("chat_messages").delete().gte("createdAt", since),
+      d.from("chat_messages").delete().gte("created_at", new Date(since).toISOString()),
       d.from("team_ratings").delete().gte("createdAt", since),
       d.from("ratings").delete().gte("at", since),
       d.from("mr_offers").delete().gte("createdAt", since),
