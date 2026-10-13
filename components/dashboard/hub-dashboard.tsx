@@ -100,7 +100,8 @@ export function HubDashboard() {
     async (item: MrCatalogItem) => {
       const ok = await postListing({
         teamId: viewerId,
-        type: "OTHER",
+        // PARTNERSHIP is accepted by every version of the listings type constraint, unlike OTHER.
+        type: "PARTNERSHIP",
         title: `MR cost-split: #${item.id} ${item.title}`,
         product: "X",
         grade: 0,

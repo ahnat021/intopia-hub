@@ -14,7 +14,7 @@ export function Team25Hero() {
             <p className="text-sm leading-relaxed text-muted-foreground">B2B trading, contracts and Datalog tools for the ADM 4711 cohort.</p>
           </div>
         </div>
-        <ul className="flex flex-wrap items-start justify-center gap-4">
+        <ul className="grid grid-cols-2 items-start gap-x-6 gap-y-4 sm:grid-cols-4">
           {TEAM_25_MEMBERS.map((op, i) => (
             <li key={`${op.name}-${i}`}>
               <Tooltip>
@@ -24,11 +24,11 @@ export function Team25Hero() {
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label={`${op.name}, ${op.role}. Connect on LinkedIn`}
-                    className="group flex w-20 flex-col items-center gap-1.5 text-center"
+                    className="group flex w-28 flex-col items-center gap-1.5 text-center"
                   >
-                    <span className="relative size-14 rounded-full ring-2 ring-border transition-all group-hover:ring-primary">
+                    <span className="relative size-[72px] shrink-0 rounded-full ring-2 ring-border transition-all group-hover:ring-primary">
                       <span className="absolute inset-0 overflow-hidden rounded-full">
-                        <Image src={op.imageUrl} alt="" fill sizes="112px" className="origin-[50%_30%] scale-200 object-cover object-top" />
+                        <Image src={op.imageUrl} alt="" fill sizes="144px" className="origin-[50%_24%] scale-[1.8] object-cover object-top" />
                       </span>
                       <span
                         aria-hidden
@@ -37,8 +37,8 @@ export function Team25Hero() {
                         in
                       </span>
                     </span>
-                    <span className="line-clamp-1 text-xs font-medium group-hover:text-primary">{op.name}</span>
-                    <span className="line-clamp-2 text-[11px] leading-tight text-muted-foreground">{op.role}</span>
+                    <span className="mt-1 text-sm font-medium leading-tight group-hover:text-primary">{op.name}</span>
+                    <span className="text-xs leading-snug text-muted-foreground text-pretty">{op.role}</span>
                   </a>
                 </TooltipTrigger>
                 <TooltipContent>Connect on LinkedIn</TooltipContent>
