@@ -70,7 +70,7 @@ export function ObligationsTracker({ contracts, viewerId, teamById }: { contract
 
   return (
     <section aria-labelledby="obl-title" className="flex flex-col gap-4">
-      <h2 id="obl-title" className="font-serif text-2xl text-balance">
+      <h2 id="obl-title" className="font-sans font-semibold text-2xl text-balance">
         My Signed Contracts & Obligations
       </h2>
       <VisibilityPill scope="private" />

@@ -90,7 +90,7 @@ export function FeeSummary({ contractValue, editable = true, className }: { cont
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="flex items-center gap-1.5 font-semibold text-foreground">
           <ShieldCheck className="size-3.5" aria-hidden />
-          Escrow Protection Fee
+          Clearing & Protection Fee
         </p>
         <p className="font-mono tabular-nums text-foreground">
           {waived ? (

@@ -68,7 +68,7 @@ export function ChatWorkspace({ viewerId, teams, partnerId, onPartnerChange }: {
 
   return (
     <section aria-labelledby="chat-title" className="flex flex-col gap-4">
-      <h2 id="chat-title" className="font-serif text-2xl">
+      <h2 id="chat-title" className="font-sans font-semibold text-2xl">
         Negotiations & Live Chat
       </h2>
       <VisibilityPill scope="private" />

@@ -1,5 +1,5 @@
 import Image from "next/image"
-import { TEAM_25_OPERATORS } from "@/lib/constants"
+import { TEAM_25_MEMBERS } from "@/lib/constants"
 import { BrandMark } from "@/components/brand-mark"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
@@ -15,7 +15,7 @@ export function Team25Hero() {
           </div>
         </div>
         <ul className="flex flex-wrap items-start justify-center gap-4">
-          {TEAM_25_OPERATORS.map((op, i) => (
+          {TEAM_25_MEMBERS.map((op, i) => (
             <li key={`${op.name}-${i}`}>
               <Tooltip>
                 <TooltipTrigger asChild>

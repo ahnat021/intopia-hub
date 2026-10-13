@@ -2,7 +2,7 @@
  * Team 25 operators shown in the hero bar. Edit names, roles, photos and
  * LinkedIn URLs here; nothing else needs to change.
  */
-export const TEAM_25_OPERATORS: { name: string; role: string; imageUrl: string; linkedInUrl: string }[] = [
+export const TEAM_25_MEMBERS: { name: string; role: string; imageUrl: string; linkedInUrl: string }[] = [
   { name: "Alexander Hnatovsky", role: "Co-founder · Hub Lead", imageUrl: "/images/team-25/headshot-1.png", linkedInUrl: "https://www.linkedin.com/in/alexander-hnatovsky" },
   { name: "Team 25 Operator", role: "Co-founder · Market Operations", imageUrl: "/images/team-25/headshot-2.png", linkedInUrl: "https://www.linkedin.com/" },
   { name: "Team 25 Operator", role: "Co-founder · Risk & Compliance", imageUrl: "/images/team-25/headshot-3.png", linkedInUrl: "https://www.linkedin.com/" },
@@ -27,15 +27,15 @@ export const CHAT_BUCKET = "chat-attachments"
 
 // ── Fees & promo ──────────────────────────────────────────────────────────────
 export const CLEARING_FEE_RATE = 0.0075
-export const CLEARING_FEE_LABEL = "Escrow Protection Fee (0.75%)"
+export const CLEARING_FEE_LABEL = "Clearing & Protection Fee (0.75%)"
 export const PROMO_CODE = "INTOPIATRIAL"
 /** End of Market Test Period 7: Oct 21, 2026 @ 22:00 EDT. */
 export const PROMO_EXPIRES_AT = new Date("2026-10-21T22:00:00-04:00").getTime()
 export const PROMO_RULE =
-  "100% Trial Fee Waiver Active until Market Test Period 7 ends (Oct 21, 2026 @ 22:00 EDT). Standard 0.75% Escrow Protection Fee applies automatically during the Official Real Game (Nov 5–8, 2026)."
+  "100% Trial Fee Waiver Active until Market Test Period 7 ends (Oct 21, 2026 @ 22:00 EDT). Standard 0.75% Clearing & Protection Fee applies automatically during the Official Real Game (Nov 5–8, 2026)."
 export const PROMO_ACTIVE_NOTE = "INTOPIATRIAL Market Test Waiver Active until Oct 21 @ 22:00 EDT"
 export const PROMO_EXPIRED_NOTE =
-  "INTOPIATRIAL Promo Expired (Market Test Ended Oct 21) — Standard 0.75% Escrow Protection Fee Active (0.375% Buyer / 0.375% Seller)"
+  "INTOPIATRIAL Promo Expired (Market Test Ended Oct 21) — Standard 0.75% Clearing & Protection Fee Active (0.375% Buyer / 0.375% Seller)"
 
 export const promoWindowOpen = (now = Date.now()) => now <= PROMO_EXPIRES_AT
 

@@ -36,10 +36,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 type Workspace = "market" | "contracts" | "chat" | "logbook"
 
 const WORKSPACES: { id: Workspace; label: string; hint: string; icon: typeof Store }[] = [
-  { id: "market", label: "Marketplace", hint: "Browse open Buy, Sell & Other offers from all teams and post your own.", icon: Store },
-  { id: "contracts", label: "My Contracts", hint: "Your executed contracts, delivery obligations, payment schedules and PDF exports.", icon: FileSignature },
-  { id: "chat", label: "Negotiations & Chat", hint: "Message any team privately, share files up to 2 MB, and rate counterparties.", icon: MessagesSquare },
-  { id: "logbook", label: "Logbook & Tools", hint: "Team directory, official schedule, and Datalog freight & production calculator.", icon: BookUser },
+  { id: "market", label: "Live Marketplace & Ledger", hint: "Browse open Buy, Sell & Other offers from all teams and post your own.", icon: Store },
+  { id: "contracts", label: "My Signed Contracts & Obligations", hint: "Your executed contracts, delivery obligations, payment schedules and PDF exports.", icon: FileSignature },
+  { id: "chat", label: "Negotiations & Live Chat", hint: "Message any team privately, share files up to 2 MB, and rate counterparties.", icon: MessagesSquare },
+  { id: "logbook", label: "Team Logbook, Schedule & Calculators", hint: "Team directory, official schedule, and Datalog freight & production calculator.", icon: BookUser },
 ]
 
 export function HubDashboard() {

@@ -45,7 +45,7 @@ function Signature({ teamId, signed, at }: { teamId: string; signed: boolean; at
   return (
     <div className="flex flex-1 flex-col gap-1">
       <div className={cn("flex h-9 items-end border-b border-dashed pb-1", signed ? "border-blue-400/60" : "border-border")}>
-        {signed ? <span className="font-serif text-lg italic text-blue-300">{teamLabel(teamId)}</span> : <span className="text-xs text-muted-foreground">Awaiting signature</span>}
+        {signed ? <span className="font-sans font-semibold text-lg text-blue-300">{teamLabel(teamId)}</span> : <span className="text-xs text-muted-foreground">Awaiting signature</span>}
       </div>
       <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
         {signed ? <CheckCircle2 className="size-3 text-blue-400" aria-hidden /> : <Clock className="size-3" aria-hidden />}
@@ -220,7 +220,7 @@ export function ContractCard({ contract, viewerId, locked, closed, canRate, onFi
             <dd className="text-right font-mono font-bold">{formatUSD(contract.totalValue)}</dd>
             {contract.clearing_fee != null && (
               <>
-                <dt className="text-muted-foreground">Escrow fee</dt>
+                <dt className="text-muted-foreground">Clearing & Protection fee</dt>
                 <dd className="text-right font-mono">
                   {contract.fee_waived ? <><s className="text-muted-foreground">0.75%</s> → $0</> : formatUSD(contract.clearing_fee)}
                 </dd>

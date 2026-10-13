@@ -1,7 +1,7 @@
 "use client"
 
 import { memo, useMemo, useState } from "react"
-import { ChevronLeft, ChevronRight, FileSignature, MessagesSquare, Pause, Play, Search, SearchX } from "lucide-react"
+import { ChevronLeft, ChevronRight, FileSignature, Info, MessagesSquare, Pause, Play, Search, SearchX } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -68,6 +68,10 @@ export const LiveMarketplace = memo(function LiveMarketplace({ listings, viewerI
   return (
     <section aria-labelledby="marketplace-title" className="rounded-xl border border-border bg-card">
       <div className="flex flex-col gap-4 border-b border-border p-4 sm:p-5">
+        <p role="note" className="flex items-start gap-2 rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm leading-relaxed text-foreground">
+          <Info className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+          <span>Live Marketplace Listings and the Official Trade Ledger are the same unified table. Every listing posted here is the ledger record.</span>
+        </p>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <h2 id="marketplace-title" className="text-lg font-semibold">Live Marketplace</h2>

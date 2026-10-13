@@ -219,7 +219,7 @@ function SetupForm({ teamId }: { teamId: string }) {
           className="inline-flex items-center justify-center gap-1.5 self-center text-xs text-muted-foreground underline-offset-4 hover:text-destructive hover:underline disabled:opacity-50"
         >
           <ShieldAlert className="size-3.5" aria-hidden />
-          Not me? Report this login attempt
+          Not your team? Report unauthorized attempt ('Not Me')
         </button>
       </form>
     )

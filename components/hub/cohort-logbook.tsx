@@ -23,7 +23,7 @@ export function CohortLogbook({ teams, viewerId, onMessage }: { teams: Team[]; v
 
   return (
     <section aria-labelledby="log-title" className="flex flex-col gap-6">
-      <h2 id="log-title" className="font-serif text-2xl">
+      <h2 id="log-title" className="font-sans font-semibold text-2xl">
         Team Logbook, Schedule & Datalog Tools
       </h2>
       <VisibilityPill scope="public" />
@@ -136,7 +136,7 @@ function DatalogCalculator() {
   const margin = (d.basePrice[from] - d.variableCost[from]) * units
   return (
     <div className="glass-card flex flex-col gap-3 rounded-lg border border-border p-4">
-      <h3 className="font-serif text-lg">Freight & Production Calculator</h3>
+      <h3 className="font-sans font-semibold text-lg">Freight & Production Calculator</h3>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Product">
           <Select value={product} onValueChange={(v) => setProduct(v as "X" | "Y")}>
