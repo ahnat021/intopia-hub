@@ -49,7 +49,7 @@ export const clearingFee = (contractValue: number, promoCodeUsed: string | null 
   Math.round(clearingFeeRate(promoCodeUsed, now) * (contractValue || 0) * 100) / 100
 
 // ── Official ADM 4711 A Fall 2026 schedule (America/Toronto) ─────────────────
-export type SchedulePhase = "test" | "pregame" | "real"
+export type SchedulePhase = "trial" | "test" | "pregame" | "real"
 export interface ScheduleEvent {
   id: string
   phase: SchedulePhase
@@ -59,17 +59,22 @@ export interface ScheduleEvent {
   note?: string
 }
 
-/** Toronto wall clock → epoch ms. October dates are EDT (UTC-4); November dates after Nov 1 are EST (UTC-5). */
-const toronto = (m: number, d: number, h: number, min = 0) => Date.UTC(2026, m - 1, d, h + (m === 11 && d >= 1 ? 5 : 4), min)
+/** Toronto wall clock → epoch ms. Dates before Nov 1, 2026 are EDT (UTC-4); from Nov 1 they are EST (UTC-5). */
+const toronto = (m: number, d: number, h: number, min = 0) => Date.UTC(2026, m - 1, d, h + (m >= 11 ? 5 : 4), min)
 
 export const SCHEDULE: ScheduleEvent[] = [
-  { id: "P1", phase: "test", label: "Period 1", labelFr: "Période 1", at: toronto(10, 5, 18, 45) },
-  { id: "P2", phase: "test", label: "Period 2", labelFr: "Période 2", at: toronto(10, 7, 22) },
-  { id: "P3", phase: "test", label: "Period 3", labelFr: "Période 3", at: toronto(10, 9, 22) },
-  { id: "P4", phase: "test", label: "Period 4", labelFr: "Période 4", at: toronto(10, 14, 22) },
-  { id: "P5", phase: "test", label: "Period 5", labelFr: "Période 5", at: toronto(10, 16, 22) },
-  { id: "P6", phase: "test", label: "Period 6", labelFr: "Période 6", at: toronto(10, 19, 18, 45) },
-  { id: "P7", phase: "test", label: "Period 7 · Final Market Test & Individual Quiz #2", labelFr: "Période 7 · Test final & Quiz individuel #2", at: toronto(10, 21, 22), note: "INTOPIATRIAL promo expires" },
+  { id: "T1", phase: "trial", label: "Trial #1", labelFr: "Essai #1", at: toronto(9, 21, 22) },
+  { id: "T2", phase: "trial", label: "Trial #2", labelFr: "Essai #2", at: toronto(9, 23, 22) },
+  { id: "T3", phase: "trial", label: "Trial #3", labelFr: "Essai #3", at: toronto(9, 25, 22) },
+  { id: "T4", phase: "trial", label: "Trial #4", labelFr: "Essai #4", at: toronto(9, 28, 22) },
+  { id: "T5", phase: "trial", label: "Trial #5 & Quiz #1", labelFr: "Essai #5 & Quiz #1", at: toronto(9, 30, 22) },
+  { id: "P1", phase: "test", label: "Market Test — Period 1", labelFr: "Test de marché — Période 1", at: toronto(10, 5, 18, 45) },
+  { id: "P2", phase: "test", label: "Market Test — Period 2", labelFr: "Test de marché — Période 2", at: toronto(10, 7, 22) },
+  { id: "P3", phase: "test", label: "Market Test — Period 3", labelFr: "Test de marché — Période 3", at: toronto(10, 9, 22) },
+  { id: "P4", phase: "test", label: "Market Test — Period 4", labelFr: "Test de marché — Période 4", at: toronto(10, 14, 22), note: "Results next day before 08:00" },
+  { id: "P5", phase: "test", label: "Market Test — Period 5", labelFr: "Test de marché — Période 5", at: toronto(10, 16, 22) },
+  { id: "P6", phase: "test", label: "Market Test — Period 6", labelFr: "Test de marché — Période 6", at: toronto(10, 19, 18, 45) },
+  { id: "P7", phase: "test", label: "Market Test — Period 7 & Quiz #2 (Final)", labelFr: "Test de marché — Période 7 & Quiz #2 (final)", at: toronto(10, 21, 22), note: "INTOPIATRIAL promo expires" },
   { id: "PROJ", phase: "pregame", label: "5-Year Projections & Business Type Declaration", labelFr: "Projections sur 5 ans & déclaration du type d'entreprise", at: toronto(11, 1, 22), note: "Results: Nov 4" },
   { id: "ZOOM", phase: "pregame", label: "Team Leaders Zoom with Prof. Tim Jones", labelFr: "Zoom des chefs d'équipe avec le Prof. Tim Jones", at: toronto(11, 4, 22) },
   { id: "MIXER", phase: "pregame", label: "In-Person Networking Mixer (DMS)", labelFr: "Cocktail de réseautage en personne (DMS)", at: toronto(11, 5, 20) },
@@ -84,20 +89,50 @@ export const SCHEDULE: ScheduleEvent[] = [
   { id: "D9", phase: "real", label: "Decision 9", labelFr: "Décision 9", at: toronto(11, 8, 16) },
 ]
 
+export const SCHEDULE_PHASES: SchedulePhase[] = ["trial", "test", "pregame", "real"]
+
 export const PHASE_INFO: Record<SchedulePhase, { title: string; titleFr: string; note: string }> = {
-  test: { title: "Market Test Phase", titleFr: "Phase des tests de marché", note: "INTOPIATRIAL 100% fee waiver active · Results next day before 08:00" },
+  trial: { title: "Phase 1 — Structured Trials", titleFr: "Phase 1 — Essais structurés", note: "Completed" },
+  test: { title: "Phase 2 — Market Test Phase", titleFr: "Phase 2 — Tests de marché", note: "INTOPIATRIAL 100% fee waiver active until Oct 21 @ 22:00 · Results next day before 08:00" },
   pregame: { title: "Pre-Game Milestones", titleFr: "Jalons pré-jeu", note: "Projections, leader briefing and networking" },
-  real: { title: "Official Real Game", titleFr: "Le vrai jeu", note: "Standard 0.75% Escrow Protection Fee active · Results 30 mins after each decision" },
+  real: { title: "Phase 3 — Official Real Game (Le Vrai Jeu)", titleFr: "Phase 3 — Le vrai jeu", note: "Standard 0.75% fee active · Results 30 mins after each decision" },
 }
 
-export const nextScheduleEvent = (now = Date.now()) => SCHEDULE.find((e) => e.at > now) ?? null
+/**
+ * Stored in hub_settings.period: "AUTO" follows the calendar; "FORCE:<id>" pins a schedule period.
+ * Legacy values (e.g. "P1") are treated as AUTO.
+ */
+export const PERIOD_AUTO = "AUTO"
+export const forcePeriod = (id: string) => `FORCE:${id}`
+const forcedId = (v?: string | null) => (v?.startsWith("FORCE:") ? v.slice(6) : null)
+export const isValidPeriodSetting = (v: string) => v === PERIOD_AUTO || SCHEDULE.some((e) => e.id === forcedId(v))
+export const normalizePeriodSetting = (v?: string | null) => (v && isValidPeriodSetting(v) ? v : PERIOD_AUTO)
+
+/** The first milestone whose deadline is still ahead (>= now), unless the admin forced one. */
+export function activeScheduleEvent(override?: string | null, now = Date.now()): ScheduleEvent | null {
+  const id = forcedId(override)
+  const forced = id ? SCHEDULE.find((e) => e.id === id) : undefined
+  return forced ?? SCHEDULE.find((e) => e.at >= now) ?? null
+}
+
+/** Short badge for the active period, e.g. "P4", "D1". */
+export const activePeriodId = (override?: string | null, now = Date.now()) => activeScheduleEvent(override, now)?.id ?? "—"
+
+export const nextScheduleEvent = activeScheduleEvent
 
 export const formatToronto = (ms: number) =>
   new Intl.DateTimeFormat("en-CA", { timeZone: "America/Toronto", weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZoneName: "short" }).format(ms)
 
-// ── Official 37-item Datalog Market Research catalog ──────────────────────────
-export type MrCategory = "Marketing" | "Production" | "R&D" | "Competitive"
-export const MR_CATEGORIES: MrCategory[] = ["Marketing", "Production", "R&D", "Competitive"]
+// ── Official 35-tool Datalog Market Research catalog (5 sections) ─────────────
+export type MrCategory = "B2C Marketing" | "B2B Marketing" | "Production" | "R&D" | "Financial"
+export const MR_CATEGORIES: MrCategory[] = ["B2C Marketing", "B2B Marketing", "Production", "R&D", "Financial"]
+export const MR_CATEGORY_LABEL: Record<MrCategory, string> = {
+  "B2C Marketing": "B2C Marketing Information",
+  "B2B Marketing": "B2B Marketing Information",
+  Production: "Production Information",
+  "R&D": "R&D Information",
+  Financial: "Financial Information",
+}
 
 export interface MrCatalogItem {
   id: number
@@ -110,43 +145,41 @@ export interface MrCatalogItem {
 const mr = (id: number, title: string, titleFr: string, costK: number, category: MrCategory): MrCatalogItem => ({ id, title, titleFr, costUSD: costK * 1000, category })
 
 export const MR_CATALOG: MrCatalogItem[] = [
-  mr(1, "Unit Consumer Sales and Prices by Company, Product, Market", "Ventes unitaires et prix par entreprise, produit, marché", 50, "Marketing"),
-  mr(2, "Consumer Market Shares by Company, Product, Market, and Area", "Parts du marché de consommation par société, produit, marché et zone", 25, "Marketing"),
-  mr(3, "Advertising Expenses by Company, Product, Market", "Dépenses de publicité par entreprise, produit, marché", 10, "Marketing"),
-  mr(4, 'Consumer Prices ("live")', 'Prix à la consommation ("en direct")', 30, "Marketing"),
-  mr(5, "Grades Sold to Consumers", "Grades vendus aux consommateurs", 25, "Marketing"),
-  mr(6, "Ending Inventory Units by Company, Product, Market", "Terminer les unités d'inventaire par société, produit, marché", 40, "Marketing"),
-  mr(7, "Estimate of sales increment by one additional sales office", "Estimation de l'augmentation des ventes par un bureau de vente supplémentaire", 10, "Marketing"),
-  mr(8, "Test Marketing for Product X", "Test de marketing pour le produit X", 30, "Marketing"),
-  mr(9, "Text Marketing for Product Y", "Text Marketing pour le produit Y", 30, "Marketing"),
-  mr(10, "Sales Office Optimization", "Optimisation du bureau de vente", 10, "Marketing"),
-  mr(11, "Industry News and Indicators", "Nouvelles et indicateurs de l'industrie", 10, "Marketing"),
-  mr(12, "Total Industry Sales", "Total des ventes de l'industrie", 10, "Marketing"),
-  mr(13, "Number of plants by company, product, market", "Nombre de plantes par entreprise, produit, marché", 30, "Production"),
-  mr(14, "Production units and grades by company, product, market", "Unités de production et qualités par entreprise, produit, marché", 40, "Production"),
-  mr(15, "Methods Improvement Expenses by Company, Product, Market", "Méthodes d'amélioration des dépenses par entreprise, produit, marché", 10, "Production"),
-  mr(16, "Average production cost by company, product, market", "Coût de production moyen par entreprise, produit, marché", 40, "Production"),
-  mr(17, "Estimate of Production Costs - Product X", "Estimation des coûts de production - Produit X", 30, "Production"),
-  mr(18, "Estimate of Production Costs - Product Y", "Estimation des coûts de production - Produit Y", 30, "Production"),
-  mr(19, 'Production Grades ("Live")', 'Niveaux de production ("Live")', 20, "Production"),
-  mr(20, "Optimal Plant Capacity Estimates", "Estimations optimales de la capacité des usines", 15, "Production"),
-  mr(21, "Components Available for Sale by Company, Product, Market", "Composants disponibles à la vente par entreprise, produit, marché", 20, "Production"),
-  mr(22, "R&D Expenses by Company", "Dépenses de R et D par compagnie", 20, "R&D"),
-  mr(23, "Patents by Company", "Brevets par compagnie", 20, "R&D"),
-  mr(24, "Licensing arrangements by Company", "Dispositions d'octroi de licences par la société", 30, "R&D"),
-  mr(25, "Sales Offices by Company, Market", "Bureaux de vente par entreprise, marché", 20, "Competitive"),
-  mr(26, "Financial Ratios", "Ratios financiers", 40, "Competitive"),
-  mr(27, "Consolidated Financial Statements (Excel)", "États financiers consolidés (Excel)", 100, "Competitive"),
-  mr(28, "Lines of Credit by Company", "Lignes de crédit par compagnie", 10, "Competitive"),
-  mr(29, "Activity Ratios", "Ratios d'activité", 40, "Competitive"),
-  mr(30, "Intercompany Sales by Product, Market", "Ventes intersociétés par produit, marché", 20, "Competitive"),
-  mr(31, "List of Wholesalers by Market", "Liste des grossistes par marché", 20, "Competitive"),
-  mr(32, "List of R&D Specialists", "Liste des spécialistes de la RD", 50, "Competitive"),
-  mr(33, 'Intercompany Sales ("Live")', 'Ventes intersociétés ("Live")', 30, "Competitive"),
-  mr(34, "Consumer Prices by Team and Grade", "Prix à la consommation par équipe et qualité", 30, "Competitive"),
-  mr(35, "Grades Manufactured by Team", "Qualités fabriquées par équipe", 30, "Competitive"),
-  mr(36, "Average Consumer Prices", "Prix moyens à la consommation", 20, "Marketing"),
-  mr(37, "Average B2B Prices", "Prix interentreprises (B2B) moyens", 30, "Competitive"),
+  mr(1, "Consumer Sales and Prices", "Ventes et prix à la consommation", 50, "B2C Marketing"),
+  mr(2, "Consumer Market Shares", "Parts du marché de consommation", 25, "B2C Marketing"),
+  mr(3, "Advertising Expenses by Company", "Dépenses de publicité par entreprise", 10, "B2C Marketing"),
+  mr(4, "Consumer Prices (live)", "Prix à la consommation (en direct)", 30, "B2C Marketing"),
+  mr(5, "Estimate of Sales increment by one additional office", "Estimation de l'augmentation des ventes par un bureau supplémentaire", 10, "B2C Marketing"),
+  mr(6, "Test Marketing for Battery", "Test de marketing — Batterie", 30, "B2C Marketing"),
+  mr(7, "Average Consumer Prices by Grade", "Prix moyens à la consommation par qualité", 20, "B2C Marketing"),
+  mr(8, "Sales Office Optimization", "Optimisation des bureaux de vente", 10, "B2C Marketing"),
+  mr(9, "Test Marketing for Smartphone", "Test de marketing — Téléphone intelligent", 30, "B2C Marketing"),
+  mr(10, "Sales Offices by Company", "Bureaux de vente par entreprise", 20, "B2C Marketing"),
+  mr(11, "Average B2B Prices", "Prix B2B moyens", 30, "B2B Marketing"),
+  mr(12, "Total Industry Sales - Consumer and B2B", "Ventes totales de l'industrie — consommateurs et B2B", 10, "B2B Marketing"),
+  mr(13, "B2B Market Shares", "Parts du marché B2B", 25, "B2B Marketing"),
+  mr(14, "Intercompany Sales", "Ventes intersociétés", 20, "B2B Marketing"),
+  mr(15, "Intercompany Sales (live)", "Ventes intersociétés (en direct)", 30, "B2B Marketing"),
+  mr(16, "List of Wholesalers", "Liste des grossistes", 20, "B2B Marketing"),
+  mr(17, "Number of Plants by Company", "Nombre d'usines par entreprise", 30, "Production"),
+  mr(18, "Grades and Production by Company", "Qualités et production par entreprise", 40, "Production"),
+  mr(19, "Methods Improvement Expense by Company", "Dépenses d'amélioration des méthodes par entreprise", 10, "Production"),
+  mr(20, "Average Variable Production Cost", "Coût variable de production moyen", 40, "Production"),
+  mr(21, "Consultants' Estimate of VC for Battery", "Estimation des consultants du CV — Batterie", 30, "Production"),
+  mr(22, "Consultants' Estimate of VC for Smartphone", "Estimation des consultants du CV — Téléphone intelligent", 30, "Production"),
+  mr(23, "Production Grades (live)", "Qualités de production (en direct)", 20, "Production"),
+  mr(24, "Optimal Plant Capacity Estimates", "Estimations de la capacité optimale des usines", 15, "Production"),
+  mr(25, "Ending Inventory", "Inventaire de fin de période", 40, "Production"),
+  mr(26, "R&D Expenses by Company", "Dépenses de R et D par entreprise", 20, "R&D"),
+  mr(27, "Grades by Company", "Qualités par entreprise", 30, "R&D"),
+  mr(28, "Licensing agreements by Company", "Accords de licence par entreprise", 30, "R&D"),
+  mr(29, "Industry News and Indicators", "Nouvelles et indicateurs de l'industrie", 10, "Financial"),
+  mr(30, "Financial Ratios", "Ratios financiers", 40, "Financial"),
+  mr(31, "Consolidated Company Financial Statements (Excel Download)", "États financiers consolidés (téléchargement Excel)", 100, "Financial"),
+  mr(32, "Lines of Credit by Company", "Lignes de crédit par entreprise", 10, "Financial"),
+  mr(33, "Activity Ratios", "Ratios d'activité", 40, "Financial"),
+  mr(34, "Cumulative Revenue Comparison", "Comparaison des revenus cumulés", 25, "Financial"),
+  mr(35, "Cumulative Value Added Comparison", "Comparaison de la valeur ajoutée cumulée", 25, "Financial"),
 ]
 
 // ── Official Datalog figures ──────────────────────────────────────────────────

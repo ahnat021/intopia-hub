@@ -247,7 +247,7 @@ export function ContractForm({ listing, threadId, viewer, counterparty, locked, 
               <Input id="cf-rate" type="number" inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} />
             </Field>
             <p className="col-span-2 flex gap-2 text-xs leading-relaxed text-muted-foreground">
-              <Landmark className="mt-0.5 size-3.5 shrink-0 text-amber-400" aria-hidden />
+              <Landmark className="mt-0.5 size-3.5 shrink-0 text-sky-400" aria-hidden />
               Intercompany loans are capped at 25% of the lender&apos;s equity. Central Bank facilities are disabled for the practice round.
             </p>
           </>
@@ -268,7 +268,7 @@ export function ContractForm({ listing, threadId, viewer, counterparty, locked, 
           ))}
         </div>
         <div className="flex h-1.5 overflow-hidden rounded-full bg-secondary" aria-hidden>
-          <div className="bg-emerald-400" style={{ width: `${Math.max(0, termValues.cash)}%` }} />
+          <div className="bg-blue-400" style={{ width: `${Math.max(0, termValues.cash)}%` }} />
           <div className="bg-sky-400" style={{ width: `${Math.max(0, termValues.ar1)}%` }} />
           <div className="bg-violet-400" style={{ width: `${Math.max(0, termValues.ar2)}%` }} />
         </div>
@@ -290,7 +290,7 @@ export function ContractForm({ listing, threadId, viewer, counterparty, locked, 
         </div>
       </div>
       {locked && (
-        <p className="flex items-center gap-2 text-xs text-amber-300">
+        <p className="flex items-center gap-2 text-xs text-sky-300">
           <AlertTriangle className="size-3.5" aria-hidden />
           Contracts are locked for Period 4 processing.
         </p>

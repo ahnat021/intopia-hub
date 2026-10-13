@@ -1,5 +1,6 @@
 "use client"
 
+import { PERIOD_AUTO, SCHEDULE, forcePeriod, normalizePeriodSetting, activePeriodId } from "@/lib/constants"
 import { useMemo, useState, type FormEvent } from "react"
 import Link from "next/link"
 import {
@@ -189,7 +190,7 @@ function Overview({ onNavigate }: { onNavigate: (s: Section) => void }) {
       <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-card p-4">
         <div>
           <p className="text-sm font-semibold">
-            Period {settings.period} · {settings.tradingLocked ? "Trading locked" : "Trading open"}
+            Period {activePeriodId(settings.period)} · {settings.tradingLocked ? "Trading locked" : "Trading open"}
           </p>
           <p className="text-sm text-muted-foreground">
             {settings.deadlineAt ? `Contracts lock at ${formatClock(settings.deadlineAt)}` : "No lock deadline scheduled."}
@@ -504,7 +505,7 @@ function toLocalInput(ms: number | null) {
 
 function HubSettingsPanel() {
   const { settings, updateSettings, announcements, postAnnouncement, deleteAnnouncement } = useHub()
-  const [period, setPeriod] = useState(settings.period)
+  const [period, setPeriod] = useState(normalizePeriodSetting(settings.period))
   const [deadline, setDeadline] = useState(toLocalInput(settings.deadlineAt))
   const [tag, setTag] = useState<AnnouncementTag>("Official")
   const [title, setTitle] = useState("")
@@ -545,8 +546,20 @@ function HubSettingsPanel() {
         <form onSubmit={savePeriod} className="flex flex-col gap-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="period">Period label</Label>
-              <Input id="period" value={period} onChange={(e) => setPeriod(e.target.value)} maxLength={12} />
+              <Label htmlFor="period">Active period override</Label>
+              <Select value={period} onValueChange={setPeriod}>
+                <SelectTrigger id="period" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={PERIOD_AUTO}>Auto (follow official calendar)</SelectItem>
+                  {SCHEDULE.map((e) => (
+                    <SelectItem key={e.id} value={forcePeriod(e.id)}>
+                      {e.id} · {e.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="deadline">Contract lock time</Label>

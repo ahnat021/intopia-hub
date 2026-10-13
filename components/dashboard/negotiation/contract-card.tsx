@@ -23,8 +23,8 @@ export const ROLES: Record<Contract["kind"], [string, string]> = {
 }
 
 const STATUS_META: Record<ContractStatus, { label: string; className: string; icon: typeof Clock }> = {
-  AWAITING: { label: "Awaiting Counterparty Response", className: "bg-amber-500/15 text-amber-300 ring-amber-500/30", icon: Clock },
-  FINALIZED: { label: "Officially Finalized & Locked", className: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30", icon: Lock },
+  AWAITING: { label: "Awaiting Counterparty Response", className: "bg-sky-500/15 text-sky-300 ring-sky-500/30", icon: Clock },
+  FINALIZED: { label: "Officially Finalized & Locked", className: "bg-blue-500/15 text-blue-300 ring-blue-500/30", icon: Lock },
   COUNTERED: { label: "Superseded by Counter-Offer", className: "bg-sky-500/15 text-sky-300 ring-sky-500/30", icon: GitBranch },
   REJECTED: { label: "Rejected · Negotiation Closed", className: "bg-destructive/15 text-destructive ring-destructive/30", icon: Ban },
 }
@@ -44,11 +44,11 @@ export function termRows(c: Contract): [string, string][] {
 function Signature({ teamId, signed, at }: { teamId: string; signed: boolean; at?: number }) {
   return (
     <div className="flex flex-1 flex-col gap-1">
-      <div className={cn("flex h-9 items-end border-b border-dashed pb-1", signed ? "border-emerald-400/60" : "border-border")}>
-        {signed ? <span className="font-serif text-lg italic text-emerald-300">{teamLabel(teamId)}</span> : <span className="text-xs text-muted-foreground">Awaiting signature</span>}
+      <div className={cn("flex h-9 items-end border-b border-dashed pb-1", signed ? "border-blue-400/60" : "border-border")}>
+        {signed ? <span className="font-serif text-lg italic text-blue-300">{teamLabel(teamId)}</span> : <span className="text-xs text-muted-foreground">Awaiting signature</span>}
       </div>
       <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
-        {signed ? <CheckCircle2 className="size-3 text-emerald-400" aria-hidden /> : <Clock className="size-3" aria-hidden />}
+        {signed ? <CheckCircle2 className="size-3 text-blue-400" aria-hidden /> : <Clock className="size-3" aria-hidden />}
         {teamLabel(teamId)}
         {signed && at ? ` · ${formatClock(at)}` : ""}
       </p>
@@ -104,7 +104,7 @@ export function ContractCard({ contract, viewerId, locked, closed, canRate, onFi
       aria-label={`Contract ${contract.id}, revision ${contract.revision}`}
       className={cn(
         "overflow-hidden rounded-xl border bg-gradient-to-b from-secondary/80 to-card transition-opacity",
-        finalized ? "border-emerald-500/40" : status === "AWAITING" ? "border-amber-500/40" : "border-border",
+        finalized ? "border-blue-500/40" : status === "AWAITING" ? "border-sky-500/40" : "border-border",
         inactive && "opacity-60",
       )}
     >
@@ -182,7 +182,7 @@ export function ContractCard({ contract, viewerId, locked, closed, canRate, onFi
             </Button>
           </div>
         )}
-        {isRecipient && locked && <p className="text-xs text-amber-300">Signing locked at 8:30 PM for period processing.</p>}
+        {isRecipient && locked && <p className="text-xs text-sky-300">Signing locked at 8:30 PM for period processing.</p>}
         {status === "AWAITING" && contract.initiatorId === viewerId && !closed && (
           <p className="text-pretty text-xs text-muted-foreground">
             Sent to {teamLabel(contract.counterpartyId)}. Switch Team to respond as the counterparty.

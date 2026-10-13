@@ -1,5 +1,6 @@
 "use client"
 
+import { activePeriodId } from "@/lib/constants"
 import { CalendarClock, Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { formatHMS, useDeadline } from "@/hooks/use-countdown"
@@ -19,7 +20,7 @@ export function PeriodStatus() {
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Current Period</p>
-            <p className="mt-0.5 font-mono text-3xl font-bold leading-none">{settings.period}</p>
+            <p className="mt-0.5 font-mono text-3xl font-bold leading-none">{activePeriodId(settings.period)}</p>
           </div>
           <span
             className={cn(

@@ -66,7 +66,7 @@ const PULSE_PRODUCTS = ["Product X", "Product Y"] as const
 type DemandLabel = "High Demand" | "Balanced" | "Oversupplied"
 
 const DEMAND_STYLE: Record<DemandLabel, string> = {
-  "High Demand": "bg-amber-500/15 text-amber-400 ring-amber-500/30",
+  "High Demand": "bg-sky-500/15 text-sky-400 ring-sky-500/30",
   Balanced: "bg-slate-400/15 text-slate-300 ring-slate-400/30",
   Oversupplied: "bg-sky-500/15 text-sky-400 ring-sky-500/30",
 }
@@ -116,12 +116,12 @@ export const MarketPulse = memo(function MarketPulse({ listings }: { listings: L
                 role="img"
                 aria-label={`${p.buyers} active buyers versus ${p.sellers} active sellers`}
               >
-                <div className="h-full bg-emerald-400 transition-[width] duration-500" style={{ width: `${(p.buyers / total) * 100}%` }} />
+                <div className="h-full bg-blue-400 transition-[width] duration-500" style={{ width: `${(p.buyers / total) * 100}%` }} />
                 <div className="h-full bg-rose-400 transition-[width] duration-500" style={{ width: `${(p.sellers / total) * 100}%` }} />
               </div>
               <div className="flex justify-between font-mono text-[11px] tabular-nums text-muted-foreground">
                 <span>
-                  <span className="text-emerald-400">{p.buyers}</span> active buyers
+                  <span className="text-blue-400">{p.buyers}</span> active buyers
                 </span>
                 <span>
                   <span className="text-rose-400">{p.sellers}</span> active sellers
@@ -147,9 +147,9 @@ export const MarketPulse = memo(function MarketPulse({ listings }: { listings: L
 
 const ACTIVITY_META: Record<ActivityKind, { icon: LucideIcon; tone: string }> = {
   listing: { icon: Store, tone: "bg-sky-500/15 text-sky-400" },
-  deal: { icon: CircleDollarSign, tone: "bg-emerald-500/15 text-emerald-400" },
+  deal: { icon: CircleDollarSign, tone: "bg-blue-500/15 text-blue-400" },
   partnership: { icon: Handshake, tone: "bg-violet-500/15 text-violet-400" },
-  license: { icon: FlaskConical, tone: "bg-amber-500/15 text-amber-400" },
+  license: { icon: FlaskConical, tone: "bg-sky-500/15 text-sky-400" },
   contract: { icon: FileSignature, tone: "bg-primary/15 text-primary" },
   announcement: { icon: Megaphone, tone: "bg-rose-500/15 text-rose-400" },
   fine: { icon: Gavel, tone: "bg-destructive/15 text-destructive" },
@@ -161,8 +161,8 @@ export const ActivityFeed = memo(function ActivityFeed({ activity }: { activity:
       title="Recent Activity"
       icon={Radio}
       action={
-        <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-emerald-400">
-          <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" aria-hidden />
+        <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-blue-400">
+          <span className="size-1.5 animate-pulse rounded-full bg-blue-400" aria-hidden />
           Live
         </span>
       }
@@ -219,7 +219,7 @@ export function Announcements({ announcements }: { announcements: Announcement[]
 }
 
 const RANK_STYLE = [
-  "bg-amber-400/20 text-amber-300 ring-amber-400/40",
+  "bg-sky-400/20 text-sky-300 ring-sky-400/40",
   "bg-slate-300/15 text-slate-200 ring-slate-300/30",
   "bg-orange-500/15 text-orange-300 ring-orange-500/30",
 ]
@@ -260,7 +260,7 @@ export function Leaderboard({ stats, viewerId }: { stats: Record<string, TeamSta
             <span className="text-right font-mono text-sm font-bold tabular-nums">{entry.reputation}%</span>
             <span className="text-right font-mono text-sm tabular-nums">{entry.completed}</span>
             <span className="flex items-center justify-end gap-0.5 font-mono text-sm tabular-nums" title={`${entry.ratingCount} partner ratings`}>
-              <Star className="size-3 fill-amber-400 text-amber-400" aria-hidden />
+              <Star className="size-3 fill-sky-400 text-sky-400" aria-hidden />
               {averageRating(entry).toFixed(1)}
             </span>
           </li>

@@ -1,5 +1,6 @@
 "use client"
 
+import { activePeriodId } from "@/lib/constants"
 import { useCallback, useMemo, useState } from "react"
 import { BadgeCheck, BookUser, Compass, FileSignature, Lock, MessagesSquare, Store, UserCog } from "lucide-react"
 import { toast } from "sonner"
@@ -10,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAuth } from "@/lib/auth-context"
 import { useHub } from "@/lib/hub-store"
 import { isBankrupt, isProfessor, type Contract, type Listing } from "@/lib/domain"
-import { CLEARING_FEE_LABEL, type MrCatalogItem } from "@/lib/constants"
+import type { MrCatalogItem } from "@/lib/constants"
 import { FreightTracker } from "./freight-tracker"
 import { HubHeader } from "./hub-header"
 import { LiveMarketplace } from "./live-marketplace"
@@ -145,7 +146,7 @@ export function HubDashboard() {
           <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
             <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
               <Lock className="size-4 text-warning" aria-hidden />
-              Contracts locked for {settings.period} processing
+              Contracts locked for {activePeriodId(settings.period)} processing
               <span className="font-normal text-muted-foreground">· New listings, drafts and signatures are disabled until the facilitator reopens trading.</span>
             </p>
           </div>
@@ -172,13 +173,6 @@ export function HubDashboard() {
           <div className="grid gap-4 pb-8 lg:grid-cols-12 lg:gap-6">
             <MetricsStrip data={metrics} />
             <div className="flex min-w-0 flex-col gap-4 lg:col-span-8 lg:gap-6">
-              <div role="note" className="glass-card flex flex-col gap-3 rounded-lg border border-gold/50 p-4 text-sm leading-relaxed">
-                <p>
-                  <strong className="font-serif text-gold">Market Liquidity Mandate.</strong> Every trade executed on Intopia Hub is escrow-protected and carries an{" "}
-                  {CLEARING_FEE_LABEL}, split evenly between buyer and seller.
-                </p>
-                <FeeSummary />
-              </div>
               <VisibilityPill scope="public" />
               <LiveMarketplace
                 listings={listings}

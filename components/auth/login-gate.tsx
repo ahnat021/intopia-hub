@@ -5,7 +5,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { ArrowLeft, Ban, Crown, KeyRound, Languages, Loader2, Lock, Mail, RotateCw, ShieldAlert, ShieldCheck } from "lucide-react"
 import { reportNotMe } from "@/lib/actions/auth-actions"
-import { officialEmail } from "@/lib/constants"
+import { officialEmail, activePeriodId } from "@/lib/constants"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -212,10 +212,15 @@ function SetupForm({ teamId }: { teamId: string }) {
             {t("setup.resend")}
           </Button>
         </div>
-        <Button type="button" variant="destructive" className="h-auto w-full whitespace-normal py-2.5 text-left" onClick={notMe} disabled={pending}>
-          <ShieldAlert aria-hidden />
-          {"Not a member of this team? Report unauthorized login attempt ('Not Me')"}
-        </Button>
+        <button
+          type="button"
+          onClick={notMe}
+          disabled={pending}
+          className="inline-flex items-center justify-center gap-1.5 self-center text-xs text-muted-foreground underline-offset-4 hover:text-destructive hover:underline disabled:opacity-50"
+        >
+          <ShieldAlert className="size-3.5" aria-hidden />
+          Not me? Report this login attempt
+        </button>
       </form>
     )
   }
@@ -323,7 +328,7 @@ export function LoginGate() {
                 Intopia <span className="text-gold">Hub</span>
               </p>
               <p className="text-xs text-muted-foreground">
-                {settings.period} · {settings.tradingLocked ? "Contracts locked" : "Trading open"} · {teams.length || 75} {t("login.stats.teams").toLowerCase()}
+                {activePeriodId(settings.period)} · {settings.tradingLocked ? "Contracts locked" : "Trading open"} · {teams.length || 75} {t("login.stats.teams").toLowerCase()}
               </p>
             </div>
           </div>

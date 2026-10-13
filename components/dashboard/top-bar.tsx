@@ -1,5 +1,6 @@
 "use client"
 
+import { activePeriodId } from "@/lib/constants"
 import type { ReactNode } from "react"
 import { Clock, Crown, Lock, LogOut, Repeat } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -54,7 +55,7 @@ export function TopBar({ team, onSignOut, children }: { team: Team; onSignOut: (
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="rounded-md bg-secondary px-2 py-1 font-mono text-xs font-bold ring-1 ring-border">{settings.period}</span>
+          <span className="rounded-md bg-secondary px-2 py-1 font-mono text-xs font-bold ring-1 ring-border">{activePeriodId(settings.period)}</span>
           <span
             role="timer"
             aria-label="Time until contracts lock"

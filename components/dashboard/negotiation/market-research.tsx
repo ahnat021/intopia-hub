@@ -100,8 +100,8 @@ export function MarketResearchForm({ threadId, viewer, counterparty, onSubmit, o
 }
 
 const MR_STATUS = {
-  OFFERED: { label: "Offer pending", className: "bg-amber-500/15 text-amber-300 ring-amber-500/30" },
-  ACCEPTED: { label: "Accepted · settle by service payment", className: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30" },
+  OFFERED: { label: "Offer pending", className: "bg-sky-500/15 text-sky-300 ring-sky-500/30" },
+  ACCEPTED: { label: "Accepted · settle by service payment", className: "bg-blue-500/15 text-blue-300 ring-blue-500/30" },
   DECLINED: { label: "Declined", className: "bg-destructive/15 text-destructive ring-destructive/30" },
 } as const
 

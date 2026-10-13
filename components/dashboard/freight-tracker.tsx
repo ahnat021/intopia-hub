@@ -56,7 +56,7 @@ export function FreightTracker({ shipments, viewerId }: { shipments: Shipment[];
               <div className="flex flex-col items-end gap-0.5">
                 <span className="font-mono text-sm tabular-nums">{formatUnits(s.quantity)}</span>
                 {(inbound || outbound) && (
-                  <span className={cn("text-[10px] font-semibold uppercase tracking-wider", inbound ? "text-emerald-400" : "text-sky-400")}>
+                  <span className={cn("text-[10px] font-semibold uppercase tracking-wider", inbound ? "text-blue-400" : "text-sky-400")}>
                     {inbound ? "Inbound" : "Outbound"}
                   </span>
                 )}

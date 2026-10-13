@@ -71,8 +71,8 @@ export const LiveMarketplace = memo(function LiveMarketplace({ listings, viewerI
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <h2 id="marketplace-title" className="text-lg font-semibold">Live Marketplace</h2>
-            <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider", isLive ? "bg-emerald-500/15 text-emerald-400" : "bg-secondary text-muted-foreground")}>
-              <span className={cn("size-1.5 rounded-full", isLive ? "animate-pulse bg-emerald-400" : "bg-muted-foreground")} aria-hidden />
+            <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider", isLive ? "bg-blue-500/15 text-blue-400" : "bg-secondary text-muted-foreground")}>
+              <span className={cn("size-1.5 rounded-full", isLive ? "animate-pulse bg-blue-400" : "bg-muted-foreground")} aria-hidden />
               {isLive ? "Live feed" : "Paused"}
             </span>
           </div>

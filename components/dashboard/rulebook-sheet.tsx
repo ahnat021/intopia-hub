@@ -44,7 +44,7 @@ function FactoryPlanner() {
                   <span className="w-6 font-mono text-xs font-bold">{p}</span>
                   <div className="flex flex-1 gap-1" aria-hidden>
                     {Array.from({ length: MAX_FACTORIES_PER_AREA }, (_, i) => (
-                      <span key={i} className={i < cell.existing ? "h-2 flex-1 rounded-full bg-primary" : i < total ? "h-2 flex-1 rounded-full bg-amber-400" : "h-2 flex-1 rounded-full bg-secondary"} />
+                      <span key={i} className={i < cell.existing ? "h-2 flex-1 rounded-full bg-primary" : i < total ? "h-2 flex-1 rounded-full bg-sky-400" : "h-2 flex-1 rounded-full bg-secondary"} />
                     ))}
                   </div>
                   <span className="w-10 text-right font-mono text-xs tabular-nums">{total}/{MAX_FACTORIES_PER_AREA}</span>
@@ -66,7 +66,7 @@ function FactoryPlanner() {
         ))}
         <li className="flex items-center gap-3 pt-1">
           <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-primary" aria-hidden />Existing</span>
-          <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-amber-400" aria-hidden />Planned</span>
+          <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-sky-400" aria-hidden />Planned</span>
         </li>
       </ul>
     </section>

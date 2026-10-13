@@ -20,9 +20,9 @@ interface MetricDef {
 
 const METRICS: MetricDef[] = [
   { key: "openListings", label: "Open Marketplace Listings", hint: "Active buy & sell offers", icon: Store, tone: "text-sky-400 bg-sky-500/15", glow: "hover:border-sky-500/40" },
-  { key: "teams", label: "Teams Participating", hint: "Across 3 regions", icon: Users, tone: "text-emerald-400 bg-emerald-500/15", glow: "hover:border-emerald-500/40" },
+  { key: "teams", label: "Teams Participating", hint: "Across 3 regions", icon: Users, tone: "text-blue-400 bg-blue-500/15", glow: "hover:border-blue-500/40" },
   { key: "partnerships", label: "Other Offers", hint: "MR cost-splits & other deals", icon: Handshake, tone: "text-violet-400 bg-violet-500/15", glow: "hover:border-violet-500/40" },
-  { key: "rnd", label: "Legacy Licensing Listings", hint: "Older patent offers still open", icon: FlaskConical, tone: "text-amber-400 bg-amber-500/15", glow: "hover:border-amber-500/40" },
+  { key: "rnd", label: "Legacy Licensing Listings", hint: "Older patent offers still open", icon: FlaskConical, tone: "text-sky-400 bg-sky-500/15", glow: "hover:border-sky-500/40" },
 ]
 
 export const MetricsStrip = memo(function MetricsStrip({ data }: { data: MetricsData }) {

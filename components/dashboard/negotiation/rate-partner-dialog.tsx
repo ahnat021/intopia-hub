@@ -59,7 +59,7 @@ export function RatePartnerDialog({ contract, viewerId, onClose }: { contract: C
                 onMouseEnter={() => setHover(n)}
                 className="rounded-md p-1 outline-none transition-transform hover:scale-110 focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <Star className={cn("size-8", n <= shown ? "fill-amber-400 text-amber-400" : "text-muted-foreground/40")} aria-hidden />
+                <Star className={cn("size-8", n <= shown ? "fill-sky-400 text-sky-400" : "text-muted-foreground/40")} aria-hidden />
               </button>
             ))}
           </div>

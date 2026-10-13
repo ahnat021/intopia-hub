@@ -38,7 +38,7 @@ function ContactCard({ team }: { team: Team }) {
   return (
     <div className="grid gap-2 sm:grid-cols-2">
       <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 p-2">
-        <MessageCircle className="size-4 shrink-0 text-emerald-400" aria-hidden />
+        <MessageCircle className="size-4 shrink-0 text-blue-400" aria-hidden />
         {team.whatsapp ? (
           <a href={whatsappHref(team.whatsapp)} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate font-mono text-xs hover:underline">{team.whatsapp}</a>
         ) : (

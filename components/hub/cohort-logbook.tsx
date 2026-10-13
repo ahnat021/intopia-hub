@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { AREA_CODES, AREA_LABEL, DATALOG, PHASE_INFO, SCHEDULE, formatToronto, freightCost, nextScheduleEvent, officialEmail, type AreaCode } from "@/lib/constants"
+import { AREA_CODES, AREA_LABEL, DATALOG, PHASE_INFO, SCHEDULE, SCHEDULE_PHASES, activeScheduleEvent, formatToronto, freightCost, officialEmail, type AreaCode } from "@/lib/constants"
 import { formatCompactUSD } from "@/lib/intopia-rules"
+import { useHub } from "@/lib/hub-store"
 import type { Team } from "@/lib/domain"
 import { VisibilityPill } from "./visibility-pill"
 
@@ -86,13 +87,18 @@ export function CohortLogbook({ teams, viewerId, onMessage }: { teams: Team[]; v
 }
 
 function ScheduleCard() {
-  const next = nextScheduleEvent()
-  const phases = ["test", "pregame", "real"] as const
+  const { settings } = useHub()
+  const next = activeScheduleEvent(settings.period)
   return (
-    <div className="glass-card rounded-lg border border-border p-4">
-      <h3 className="font-serif text-lg">Official ADM 4711 Fall 2026 Schedule</h3>
+    <div className="rounded-lg border border-border bg-card p-4">
+      <h3 className="text-lg font-semibold">Official ADM 4711 Fall 2026 Schedule</h3>
       <p className="mb-3 text-xs text-muted-foreground">America/Toronto time</p>
-      {phases.map((p) => (
+      {next && (
+        <p className="mb-3 rounded-md border border-primary/40 bg-primary/10 px-3 py-2 text-sm">
+          <span className="font-semibold text-primary">Current active period:</span> {next.label} · Deadline {formatToronto(next.at)}
+        </p>
+      )}
+      {SCHEDULE_PHASES.map((p) => (
         <div key={p} className="mb-3">
           <h4 className="text-sm font-semibold">
             {PHASE_INFO[p].title} <span className="font-normal text-muted-foreground">· {PHASE_INFO[p].titleFr}</span>
@@ -100,8 +106,15 @@ function ScheduleCard() {
           <p className="mb-1 text-xs text-muted-foreground">{PHASE_INFO[p].note}</p>
           <ul className="flex flex-col font-mono text-xs">
             {SCHEDULE.filter((e) => e.phase === p).map((e) => (
-              <li key={e.id} className={`flex justify-between gap-2 rounded px-2 py-1 ${next?.id === e.id ? "bg-primary/15 text-primary" : ""}`}>
-                <span>{e.label}</span>
+              <li
+                key={e.id}
+                aria-current={next?.id === e.id ? "step" : undefined}
+                className={`flex justify-between gap-2 rounded px-2 py-1 ${next?.id === e.id ? "bg-primary/15 font-semibold text-primary" : next && e.at < next.at ? "text-muted-foreground line-through decoration-muted-foreground/40" : ""}`}
+              >
+                <span>
+                  {e.label}
+                  {next?.id === e.id && " · CURRENT"}
+                </span>
                 <span>{formatToronto(e.at)}</span>
               </li>
             ))}

@@ -1,5 +1,6 @@
 "use client"
 
+import { PERIOD_AUTO, SCHEDULE, forcePeriod, normalizePeriodSetting } from "@/lib/constants"
 import { useMemo, useState } from "react"
 import { CalendarClock, Gavel, Megaphone, Trash2, UserCog } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -12,7 +13,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { useHub } from "@/lib/hub-store"
 import { FINE_REASONS, PROFESSOR_TEAM_ID, type AnnouncementTag, type FineReason } from "@/lib/domain"
 
-const PERIODS = Array.from({ length: 12 }, (_, i) => `P${i + 1}`)
 const TAGS: AnnouncementTag[] = ["Official", "Reminder", "Community"]
 
 const toLocalInput = (ms: number | null) => {
@@ -83,7 +83,7 @@ function AnnouncementTab() {
 
 function CalendarTab() {
   const hub = useHub()
-  const [period, setPeriod] = useState(hub.settings.period)
+  const [period, setPeriod] = useState(normalizePeriodSetting(hub.settings.period))
   const [deadline, setDeadline] = useState(toLocalInput(hub.settings.deadlineAt))
 
   async function submit(e: React.FormEvent) {
@@ -101,7 +101,10 @@ function CalendarTab() {
           <Label htmlFor="cal-period">Current period</Label>
           <Select value={period} onValueChange={setPeriod}>
             <SelectTrigger id="cal-period" className="w-full"><SelectValue /></SelectTrigger>
-            <SelectContent>{PERIODS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
+            <SelectContent>
+              <SelectItem value={PERIOD_AUTO}>Auto (follow official calendar)</SelectItem>
+              {SCHEDULE.map((e) => <SelectItem key={e.id} value={forcePeriod(e.id)}>{e.id} · {e.label}</SelectItem>)}
+            </SelectContent>
           </Select>
         </div>
         <div className="flex flex-col gap-1.5">

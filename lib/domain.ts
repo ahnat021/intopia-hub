@@ -254,7 +254,7 @@ export interface HubSettings {
   deadlineAt: number | null
 }
 
-export const DEFAULT_SETTINGS: HubSettings = { period: "P1", tradingLocked: false, deadlineAt: null }
+export const DEFAULT_SETTINGS: HubSettings = { period: "AUTO", tradingLocked: false, deadlineAt: null }
 
 export const LISTING_TYPE_LABEL: Record<ListingType, string> = {
   BUY: "Buy",

@@ -3,7 +3,7 @@
 import { db, isSupabaseConfigured } from "@/lib/supabaseClient"
 import { getSession } from "@/lib/server/session"
 import { newId } from "@/lib/server/security"
-import { clearingFee, promoActive } from "@/lib/constants"
+import { clearingFee, isValidPeriodSetting, promoActive } from "@/lib/constants"
 import { PRODUCT_INFO, formatCompactUSD, formatUnits, productCode } from "@/lib/intopia-rules"
 import {
   DEFAULT_SETTINGS,
@@ -595,7 +595,7 @@ export async function issueFine(teamId: string, amountK: number, reason: FineRea
 export async function setCalendar(period: string, deadlineAt: number | null): Promise<ActionResult> {
   const auth = await requireAdminOrProfessor()
   if (!auth.ok) return auth
-  if (!/^P\d{1,2}$/.test(period)) return fail("Choose a period like P1–P12.")
+  if (!isValidPeriodSetting(period)) return fail("Choose Auto or a period from the official schedule.")
   if (deadlineAt !== null && !finite(deadlineAt, 0, 1e14)) return fail("Invalid deadline.")
   const { error } = await db().from("hub_settings").update({ period, deadlineAt }).eq("id", 1)
   if (error) return fail("Could not update the calendar.")
@@ -617,7 +617,7 @@ export async function updateSettings(patch: Partial<HubSettings>): Promise<Actio
   if (!auth.ok) return auth
   const update: Partial<HubSettings> = {}
   if (typeof patch.tradingLocked === "boolean") update.tradingLocked = patch.tradingLocked
-  if (typeof patch.period === "string" && /^P\d{1,2}$/.test(patch.period)) update.period = patch.period
+  if (typeof patch.period === "string" && isValidPeriodSetting(patch.period)) update.period = patch.period
   if (patch.deadlineAt === null || finite(patch.deadlineAt, 0, 1e14)) update.deadlineAt = patch.deadlineAt ?? null
   await db().from("hub_settings").update(update).eq("id", 1)
   if (update.tradingLocked !== undefined)

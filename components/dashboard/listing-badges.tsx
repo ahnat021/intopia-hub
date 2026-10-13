@@ -18,16 +18,16 @@ const STATUS_LABEL: Record<ListingStatus, string> = {
 }
 
 const STATUS_STYLES: Record<ListingStatus, string> = {
-  OPEN: "bg-emerald-500/15 text-emerald-400 ring-emerald-500/25",
+  OPEN: "bg-blue-500/15 text-blue-400 ring-blue-500/25",
   NEGOTIATING: "bg-sky-500/15 text-sky-400 ring-sky-500/25",
-  PENDING_SIGNATURE: "bg-amber-500/15 text-amber-400 ring-amber-500/25",
+  PENDING_SIGNATURE: "bg-sky-500/15 text-sky-400 ring-sky-500/25",
   CLOSED: "bg-slate-500/15 text-slate-400 ring-slate-500/25",
 }
 
 const STATUS_DOT: Record<ListingStatus, string> = {
-  OPEN: "bg-emerald-400",
+  OPEN: "bg-blue-400",
   NEGOTIATING: "bg-sky-400",
-  PENDING_SIGNATURE: "bg-amber-400 animate-pulse",
+  PENDING_SIGNATURE: "bg-sky-400 animate-pulse",
   CLOSED: "bg-slate-400",
 }
 
@@ -47,9 +47,9 @@ export function StatusBadge({ status }: { status: ListingStatus }) {
 
 export const TYPE_META: Record<ListingType, { icon: LucideIcon; className: string }> = {
   BUY: { icon: ArrowDownLeft, className: "text-sky-400 bg-sky-500/15" },
-  SELL: { icon: ArrowUpRight, className: "text-emerald-400 bg-emerald-500/15" },
+  SELL: { icon: ArrowUpRight, className: "text-blue-400 bg-blue-500/15" },
   PARTNERSHIP: { icon: Handshake, className: "text-violet-400 bg-violet-500/15" },
-  RND: { icon: FlaskConical, className: "text-amber-400 bg-amber-500/15" },
+  RND: { icon: FlaskConical, className: "text-sky-400 bg-sky-500/15" },
   OTHER: { icon: Shapes, className: "text-slate-300 bg-slate-500/15" },
 }
 
