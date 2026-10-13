@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server"
 import { db } from "@/lib/supabaseClient"
 import { getSession } from "@/lib/server/session"
 import { newId } from "@/lib/server/security"
-import { ATTACHMENT_MIME, CHAT_BUCKET, MAX_ATTACHMENT_BYTES } from "@/lib/constants"
+import { CHAT_BUCKET, MAX_ATTACHMENT_BYTES, attachmentMime } from "@/lib/constants"
 
 const ID = /^[\w-]{1,60}$/
 
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
   if (file instanceof File && file.size > 0) {
     if (file.size > MAX_ATTACHMENT_BYTES) return NextResponse.json({ error: "Files are limited to 2 MB." }, { status: 413 })
     const ext = file.name.split(".").pop()?.toLowerCase() ?? ""
-    const mime = ATTACHMENT_MIME[ext]
+    const mime = attachmentMime(file.name, file.type)
     if (!mime) return NextResponse.json({ error: "Only PDF, Word, JPEG or PNG files are allowed." }, { status: 415 })
     const path = `${me}/${row.id}.${ext}`
     const { error } = await db().storage.from(CHAT_BUCKET).upload(path, await file.arrayBuffer(), { contentType: mime, upsert: false })

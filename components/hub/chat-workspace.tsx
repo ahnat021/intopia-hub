@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { rateCounterparty } from "@/lib/actions/clearinghouse-actions"
-import { ATTACHMENT_ACCEPT, MAX_ATTACHMENT_BYTES } from "@/lib/constants"
+import { ATTACHMENT_ACCEPT, MAX_ATTACHMENT_BYTES, attachmentMime } from "@/lib/constants"
 import type { Team } from "@/lib/domain"
 import { VisibilityPill } from "./visibility-pill"
 
@@ -36,6 +36,11 @@ export function ChatWorkspace({ viewerId, teams, partnerId, onPartnerChange }: {
     if (!f) return
     if (f.size > MAX_ATTACHMENT_BYTES) {
       toast.error("Files are limited to 2 MB.")
+      if (fileRef.current) fileRef.current.value = ""
+      return
+    }
+    if (!attachmentMime(f.name, f.type)) {
+      toast.error("Only PDF, Word, JPEG or PNG files are allowed.")
       if (fileRef.current) fileRef.current.value = ""
       return
     }

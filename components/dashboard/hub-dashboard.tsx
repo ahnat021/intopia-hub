@@ -76,7 +76,9 @@ export function HubDashboard() {
   const openListing = useCallback(
     (listing: Listing) => {
       if (listing.teamId !== viewerId) {
-        setSession({ listingId: listing.id, threadId: openThread(listing, viewerId) })
+        void openThread(listing, viewerId).then((threadId) => {
+          if (threadId) setSession({ listingId: listing.id, threadId })
+        })
         return
       }
       const latest = Object.values(threads)

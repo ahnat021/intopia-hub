@@ -22,7 +22,26 @@ export const ATTACHMENT_MIME: Record<string, string> = {
   "image/jpeg": ".jpg",
   "image/png": ".png",
 }
+/** File extension → canonical MIME type; uploads must match both. */
+export const ATTACHMENT_EXT_MIME: Record<string, string> = {
+  pdf: "application/pdf",
+  doc: "application/msword",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+}
 export const ATTACHMENT_ACCEPT = ".pdf,.doc,.docx,.jpg,.jpeg,.png"
+
+/** Returns the canonical MIME type, or null when the extension or declared type isn't allowed. */
+export function attachmentMime(fileName: string, declaredType: string) {
+  const ext = fileName.split(".").pop()?.toLowerCase() ?? ""
+  const mime = ATTACHMENT_EXT_MIME[ext]
+  if (!mime) return null
+  // Some browsers report Word files with an empty or generic type; images and PDFs must match exactly.
+  if (declaredType && declaredType !== mime && !(ext.startsWith("doc") && declaredType === "application/octet-stream")) return null
+  return mime
+}
 export const CHAT_BUCKET = "chat-attachments"
 
 // ── Fees & promo ──────────────────────────────────────────────────────────────

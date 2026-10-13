@@ -46,7 +46,7 @@ interface HubValue extends Snapshot {
   toggleLive: () => void
   lockedOut: boolean
   postListing: (input: NewListingInput) => Promise<boolean>
-  openThread: (listing: Listing, viewerId: string) => string
+  openThread: (listing: Listing, viewerId: string) => Promise<string | null>
   draftContract: (draft: ContractDraft, parentId?: string) => Promise<boolean>
   finalizeContract: (contractId: string) => Promise<Contract | null>
   rejectAndClose: (threadId: string) => Promise<boolean>
@@ -122,10 +122,11 @@ export function HubProvider({ children, initial }: { children: ReactNode; initia
   const done = useCallback(async (p: Promise<unknown>) => (await p) !== null, [])
 
   const openThread = useCallback(
-    (listing: Listing, viewerId: string) => {
+    async (listing: Listing, viewerId: string) => {
+      // Masked posters carry an alias, so the real thread id comes back from the server.
       const id = threadIdFor(listing.id, viewerId, listing.teamId)
-      if (!snapshot.threads[id]) void run(() => actions.openThread(listing.id))
-      return id
+      if (snapshot.threads[id]) return id
+      return run(() => actions.openThread(listing.id))
     },
     [run, snapshot.threads],
   )

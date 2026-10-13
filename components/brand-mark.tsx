@@ -1,11 +1,15 @@
-import Image from "next/image"
+import { Handshake } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-/** The Intopia black cat mascot, used as the hub's logo mark. */
-export function BrandMark({ className, priority }: { className?: string; priority?: boolean }) {
+/** Intopia Hub logo mark. */
+export function BrandMark({ className }: { className?: string; priority?: boolean }) {
   return (
-    <span className={cn("relative inline-block shrink-0 overflow-hidden rounded-full ring-2 ring-primary/40", className ?? "size-9")}>
-      <Image src="/images/intopia-cat.png" alt="Intopia Hub black cat logo" fill sizes="64px" priority={priority} className="object-cover" />
+    <span
+      role="img"
+      aria-label="Intopia Hub logo"
+      className={cn("inline-flex shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground", className ?? "size-9")}
+    >
+      <Handshake className="size-1/2" aria-hidden />
     </span>
   )
 }

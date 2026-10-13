@@ -2,7 +2,7 @@
 
 import { db, isSupabaseConfigured } from "@/lib/supabaseClient"
 import { getSession } from "@/lib/server/session"
-import { newId } from "@/lib/server/security"
+import { newId, posterAlias } from "@/lib/server/security"
 import { clearingFee, isValidPeriodSetting, promoActive } from "@/lib/constants"
 import { PRODUCT_INFO, formatCompactUSD, formatUnits, productCode } from "@/lib/intopia-rules"
 import {
@@ -154,6 +154,19 @@ function computeTopPartners(contracts: Pick<Contract, "initiatorId" | "counterpa
   return [...pairs.values()].sort((a, b) => b.volume - a.volume).slice(0, 3)
 }
 
+const PRIVATE_TEAM_FIELDS = [
+  "contact_email",
+  "team_members",
+  "team_leader_name",
+  "promo_code_used",
+  "promo_redeemed_at",
+  "security_flag_count",
+  "last_intrusion_reported_at",
+  "waiverName",
+  "waiver_signed_at",
+  "whatsapp_number",
+]
+
 export async function getSnapshot(): Promise<HubSnapshot> {
   if (!isSupabaseConfigured()) return EMPTY_SNAPSHOT
   const session = await getSession()
@@ -178,14 +191,33 @@ export async function getSnapshot(): Promise<HubSnapshot> {
   // A banned or deleted team's cookie no longer grants a session.
   const viewer = isAdmin ? ({ role: "admin" } as const) : viewerTeam && !viewerTeam.banned ? ({ role: "team", teamId: viewerTeam.id } as const) : null
 
-  const teams = rawTeams.map((t) => ({
-    ...t,
-    equity: num(t.equity),
-    whatsapp: viewer ? t.whatsapp : null,
-    email: isAdmin ? t.email : null,
-  }))
+  const teams = rawTeams.map((t) => {
+    const row: Record<string, unknown> = { ...t, equity: num(t.equity), whatsapp: viewer ? t.whatsapp : null, email: isAdmin ? t.email : null }
+    if (!isAdmin && t.id !== viewerTeamId) for (const k of PRIVATE_TEAM_FIELDS) delete row[k]
+    return row as unknown as Team
+  })
   const ratings = ((ratingsRes.data ?? []) as Rating[]).map((r) => ({ ...r, tags: (r.tags ?? []).filter((t) => RATING_TAGS.includes(t)) }))
   const finalized = (finalRes.data ?? []) as Pick<Contract, "initiatorId" | "counterpartyId" | "totalValue">[]
+
+  const stats = computeStats(teams, finalized, ratings)
+  let threadRows: ThreadRow[] = []
+  if (isAdmin) {
+    threadRows = ((await db().from("threads").select("*")).data ?? []) as ThreadRow[]
+  } else if (viewer?.role === "team") {
+    threadRows = ((await db().from("threads").select("*").or(`teamA.eq.${viewer.teamId},teamB.eq.${viewer.teamId}`)).data ?? []) as ThreadRow[]
+  }
+  // Posters stay blind until the viewer owns the listing or has opened a negotiation on it.
+  const revealed = new Set(threadRows.map((t) => t.listingId))
+  const listings = ((listingsRes.data ?? []) as Listing[]).map((l) => {
+    const row = { ...l, quantity: num(l.quantity), unitPrice: num(l.unitPrice) }
+    if (isAdmin || l.teamId === viewerTeamId || revealed.has(l.id)) return row
+    const alias = posterAlias(l.teamId)
+    if (stats[l.teamId] && !stats[alias]) stats[alias] = { ...stats[l.teamId], teamId: alias }
+    return { ...row, teamId: alias }
+  })
+  const activity = ((activityRes.data ?? []) as { kind: string; teamId: string | null }[]).map((a) =>
+    !isAdmin && ["listing", "partnership", "license"].includes(a.kind) && a.teamId !== viewerTeamId ? { ...a, teamId: null } : a,
+  )
 
   const base: HubSnapshot = {
     ...EMPTY_SNAPSHOT,
@@ -193,24 +225,18 @@ export async function getSnapshot(): Promise<HubSnapshot> {
     viewer,
     teams,
     settings,
-    listings: ((listingsRes.data ?? []) as Listing[]).map((l) => ({ ...l, quantity: num(l.quantity), unitPrice: num(l.unitPrice) })),
-    activity: activityRes.data ?? [],
+    listings,
+    activity: activity as HubSnapshot["activity"],
     announcements: annRes.data ?? [],
     shipments: (shipRes.data ?? []).map((s) => ({ ...s, quantity: Number(s.quantity) })),
     fines: (finesRes.data ?? []).map((f) => ({ ...f, amountK: Number(f.amountK) })),
-    stats: computeStats(teams, finalized, ratings),
+    stats,
     topPartners: computeTopPartners(finalized),
     ratings,
     adminConfigured: Boolean(adminRes.count),
   }
   if (!viewer) return base
 
-  let threadRows: ThreadRow[] = []
-  if (isAdmin) {
-    threadRows = ((await db().from("threads").select("*")).data ?? []) as ThreadRow[]
-  } else if (viewer.role === "team") {
-    threadRows = ((await db().from("threads").select("*").or(`teamA.eq.${viewer.teamId},teamB.eq.${viewer.teamId}`)).data ?? []) as ThreadRow[]
-  }
   const threadIds = threadRows.map((t) => t.id)
   const fetchScoped = async (table: string, orderBy?: string): Promise<{ data: unknown[] | null }> => {
     if (!isAdmin && !threadIds.length) return { data: [] }
@@ -277,7 +303,7 @@ export async function postListing(input: NewListingInput): Promise<ActionResult<
   const { error } = await db().from("listings").insert(listing)
   if (error) return fail("Could not post the listing.")
   const kind: ActivityKind = input.type === "PARTNERSHIP" ? "partnership" : input.type === "RND" ? "license" : "listing"
-  await logActivity(kind, `${team.name} posted ${listing.title}`, team.id)
+  await logActivity(kind, `A verified counterparty posted ${listing.title}`, team.id)
   return ok(listing)
 }
 

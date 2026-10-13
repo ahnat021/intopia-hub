@@ -50,6 +50,11 @@ const NOT_ME_TTL_MS = 60 * 60 * 1000
 
 const secretKey = () => process.env.SESSION_SECRET || process.env.SUPABASE_JWT_SECRET || ""
 
+/** Stable, unguessable stand-in for a listing poster so public payloads never carry the real team id. */
+export function posterAlias(teamId: string) {
+  return `anon-${createHmac("sha256", secretKey()).update(`poster:${teamId}`).digest("hex").slice(0, 16)}`
+}
+
 export function notMeToken(teamId: string) {
   const exp = Date.now() + NOT_ME_TTL_MS
   return `${exp}.${createHmac("sha256", secretKey()).update(`notme:${teamId}:${exp}`).digest("hex")}`

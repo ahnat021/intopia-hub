@@ -226,13 +226,19 @@ async function wipeActivity(filter: { teamId?: string; since?: number }) {
     )
   }
   // Children first so foreign keys never block the parent deletes.
-  for (const op of ops) await op
+  const failed: string[] = []
+  for (const op of ops) {
+    const res = (await op) as { error?: { message: string } | null }
+    if (res?.error) failed.push(res.error.message)
+  }
+  return failed
 }
 
 export async function adminScrubTeam(teamId: string, mode: "trades" | "full"): Promise<ActionResult> {
   if (!(await requireHubAdmin())) return fail("Admin only.")
   if (!/^[\w-]{1,60}$/.test(teamId)) return fail("Invalid team.")
-  await wipeActivity({ teamId })
+  const failed = await wipeActivity({ teamId })
+  if (failed.length) return fail(`Scrub incomplete: ${failed.length} table(s) could not be cleared.`)
   if (mode === "full") {
     const { error } = await db()
       .from("teams")
@@ -257,13 +263,13 @@ export async function adminScrubTeam(teamId: string, mode: "trades" | "full"): P
 
 export async function adminPhaseReset(): Promise<ActionResult> {
   if (!(await requireHubAdmin())) return fail("Admin only.")
-  await wipeActivity({ since: 0 })
-  return ok(undefined)
+  const failed = await wipeActivity({ since: 0 })
+  return failed.length ? fail(`Reset incomplete: ${failed.length} table(s) could not be cleared.`) : ok(undefined)
 }
 
 export async function adminRollback(sinceMs: number): Promise<ActionResult> {
   if (!(await requireHubAdmin())) return fail("Admin only.")
   if (!Number.isFinite(sinceMs) || sinceMs <= 0 || sinceMs > Date.now()) return fail("Pick a valid time window.")
-  await wipeActivity({ since: Math.floor(sinceMs) })
-  return ok(undefined)
+  const failed = await wipeActivity({ since: Math.floor(sinceMs) })
+  return failed.length ? fail(`Rollback incomplete: ${failed.length} table(s) could not be cleared.`) : ok(undefined)
 }
