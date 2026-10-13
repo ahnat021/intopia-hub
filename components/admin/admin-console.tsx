@@ -38,6 +38,7 @@ import { cn } from "@/lib/utils"
 import { AdminLogin } from "./admin-login"
 import { FinesPanel, KycQueuePanel } from "./compliance-panels"
 import { OverrideDialog } from "./override-dialog"
+import { DataManagerPanel, IntelligencePanel } from "./power-tools"
 
 const KIND_LABEL: Record<Contract["kind"], string> = {
   PRODUCT_SALE: "Product Sale",
@@ -52,7 +53,7 @@ const STATUS_STYLE: Record<ContractStatus, string> = {
   REJECTED: "bg-destructive/10 text-destructive ring-destructive/30",
 }
 
-type Section = "overview" | "teams" | "ledger" | "listings" | "compliance" | "settings"
+type Section = "overview" | "teams" | "ledger" | "listings" | "compliance" | "intel" | "data" | "settings"
 
 const SECTIONS: { id: Section; label: string; icon: LucideIcon }[] = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
@@ -60,6 +61,8 @@ const SECTIONS: { id: Section; label: string; icon: LucideIcon }[] = [
   { id: "ledger", label: "Global Ledger", icon: FileStack },
   { id: "listings", label: "Listings", icon: Store },
   { id: "compliance", label: "Compliance", icon: ShieldAlert },
+  { id: "intel", label: "Team 25 Intelligence", icon: ShieldCheck },
+  { id: "data", label: "Data Manager", icon: Trash2 },
   { id: "settings", label: "Hub Settings", icon: Settings2 },
 ]
 
@@ -146,6 +149,8 @@ function AdminDashboard() {
               <FinesPanel />
             </div>
           )}
+          {section === "intel" && <IntelligencePanel />}
+          {section === "data" && <DataManagerPanel />}
           {section === "settings" && <HubSettingsPanel />}
         </main>
       </div>
