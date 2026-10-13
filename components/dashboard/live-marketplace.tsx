@@ -15,6 +15,7 @@ import { useI18n } from "@/lib/i18n"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { CounterpartyLabel, useCounterpartyText } from "@/components/hub/counterparty-label"
 import { DeliveryLabel, StatusBadge, TypeLabel } from "./listing-badges"
+import { WithdrawListingButton } from "./withdraw-listing-button"
 
 const PAGE_SIZE = 8
 
@@ -188,6 +189,8 @@ export const LiveMarketplace = memo(function LiveMarketplace({ listings, viewerI
                     <TableCell className="whitespace-nowrap text-sm">{l.region}</TableCell>
                     <TableCell><DeliveryLabel mode={l.delivery} /></TableCell>
                     <TableCell className="pr-5 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                      {mine && !hasContract && l.status !== "CLOSED" && l.status !== "PENDING_SIGNATURE" && <WithdrawListingButton listing={l} />}
                       <Button
                         size="sm"
                         variant={hasContract ? "default" : "secondary"}
@@ -198,6 +201,7 @@ export const LiveMarketplace = memo(function LiveMarketplace({ listings, viewerI
                         {hasContract ? <FileSignature aria-hidden /> : <MessagesSquare aria-hidden />}
                         {label}
                       </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 )

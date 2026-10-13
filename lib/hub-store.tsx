@@ -60,6 +60,7 @@ interface HubValue extends Snapshot {
   adminDelete: (contractId: string) => Promise<boolean>
   adminOverride: (contractId: string, patch: ContractOverride) => Promise<boolean>
   deleteListing: (listingId: string) => Promise<boolean>
+  withdrawListing: (listingId: string) => Promise<boolean>
   toggleBan: (teamId: string) => Promise<boolean>
   approveKyc: (teamId: string) => Promise<boolean>
   rejectKyc: (teamId: string) => Promise<boolean>
@@ -164,6 +165,7 @@ export function HubProvider({ children, initial }: { children: ReactNode; initia
       adminDelete: (id) => done(run(() => actions.adminDelete(id))),
       adminOverride: (id, patch) => done(run(() => actions.adminOverride(id, patch))),
       deleteListing: (id) => done(run(() => actions.deleteListing(id))),
+      withdrawListing: (id) => done(run(() => actions.withdrawListing(id))),
       toggleBan: (teamId) => done(run(() => actions.toggleBan(teamId))),
       approveKyc: (teamId) => done(run(() => actions.approveKyc(teamId))),
       rejectKyc: (teamId) => done(run(() => actions.rejectKyc(teamId))),
