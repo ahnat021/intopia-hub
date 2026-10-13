@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next"
 import Image from "next/image"
 import { Cinzel, Geist, Geist_Mono } from "next/font/google"
-import { DonationGate } from "@/components/donation-gate"
 import { Providers } from "@/components/providers"
 import { BootSplash } from "@/components/boot-splash"
 import "./globals.css"
@@ -34,7 +33,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         </div>
         <Providers>
           <BootSplash />
-          <DonationGate>{children}</DonationGate>
+          {children}
         </Providers>
       </body>
     </html>

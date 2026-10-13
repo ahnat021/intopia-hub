@@ -3,7 +3,7 @@
  * LinkedIn URLs here; nothing else needs to change.
  */
 export const TEAM_25_OPERATORS: { name: string; role: string; imageUrl: string; linkedInUrl: string }[] = [
-  { name: "Alexander Hnatovsky", role: "Co-founder · Clearinghouse Lead", imageUrl: "/images/team-25/headshot-1.png", linkedInUrl: "https://www.linkedin.com/in/alexander-hnatovsky" },
+  { name: "Alexander Hnatovsky", role: "Co-founder · Hub Lead", imageUrl: "/images/team-25/headshot-1.png", linkedInUrl: "https://www.linkedin.com/in/alexander-hnatovsky" },
   { name: "Team 25 Operator", role: "Co-founder · Market Operations", imageUrl: "/images/team-25/headshot-2.png", linkedInUrl: "https://www.linkedin.com/" },
   { name: "Team 25 Operator", role: "Co-founder · Risk & Compliance", imageUrl: "/images/team-25/headshot-3.png", linkedInUrl: "https://www.linkedin.com/" },
   { name: "Team 25 Operator", role: "Co-founder · Data & Research", imageUrl: "/images/team-25/headshot-4.png", linkedInUrl: "https://www.linkedin.com/" },
@@ -27,18 +27,26 @@ export const CHAT_BUCKET = "chat-attachments"
 
 // ── Fees & promo ──────────────────────────────────────────────────────────────
 export const CLEARING_FEE_RATE = 0.0075
-export const CLEARING_FEE_LABEL = "Clearinghouse & Escrow Protection Fee (0.75%)"
+export const CLEARING_FEE_LABEL = "Escrow Protection Fee (0.75%)"
 export const PROMO_CODE = "INTOPIATRIAL"
-/** Oct 21, 2026 @ 22:00 EDT (UTC-4). */
-export const PROMO_EXPIRES_AT = Date.UTC(2026, 9, 22, 2, 0)
+/** End of Market Test Period 7: Oct 21, 2026 @ 22:00 EDT. */
+export const PROMO_EXPIRES_AT = new Date("2026-10-21T22:00:00-04:00").getTime()
 export const PROMO_RULE =
-  "100% Trial Fee Waiver Active until Market Test Period 7 ends (Oct 21, 2026 @ 22:00 EDT). Standard 0.75% Clearinghouse Protection Fee applies automatically during the Official Real Game (Nov 5–8, 2026)."
+  "100% Trial Fee Waiver Active until Market Test Period 7 ends (Oct 21, 2026 @ 22:00 EDT). Standard 0.75% Escrow Protection Fee applies automatically during the Official Real Game (Nov 5–8, 2026)."
+export const PROMO_ACTIVE_NOTE = "INTOPIATRIAL Market Test Waiver Active until Oct 21 @ 22:00 EDT"
+export const PROMO_EXPIRED_NOTE =
+  "INTOPIATRIAL Promo Expired (Market Test Ended Oct 21) — Standard 0.75% Escrow Protection Fee Active (0.375% Buyer / 0.375% Seller)"
+
+export const promoWindowOpen = (now = Date.now()) => now <= PROMO_EXPIRES_AT
 
 export const promoActive = (promoCodeUsed: string | null | undefined, now = Date.now()) =>
-  promoCodeUsed?.toUpperCase() === PROMO_CODE && now < PROMO_EXPIRES_AT
+  promoCodeUsed?.toUpperCase() === PROMO_CODE && promoWindowOpen(now)
 
 export const clearingFeeRate = (promoCodeUsed: string | null | undefined, now = Date.now()) =>
   promoActive(promoCodeUsed, now) ? 0 : CLEARING_FEE_RATE
+
+export const clearingFee = (contractValue: number, promoCodeUsed: string | null | undefined, now = Date.now()) =>
+  Math.round(clearingFeeRate(promoCodeUsed, now) * (contractValue || 0) * 100) / 100
 
 // ── Official ADM 4711 A Fall 2026 schedule (America/Toronto) ─────────────────
 export type SchedulePhase = "test" | "pregame" | "real"
@@ -79,7 +87,7 @@ export const SCHEDULE: ScheduleEvent[] = [
 export const PHASE_INFO: Record<SchedulePhase, { title: string; titleFr: string; note: string }> = {
   test: { title: "Market Test Phase", titleFr: "Phase des tests de marché", note: "INTOPIATRIAL 100% fee waiver active · Results next day before 08:00" },
   pregame: { title: "Pre-Game Milestones", titleFr: "Jalons pré-jeu", note: "Projections, leader briefing and networking" },
-  real: { title: "Official Real Game", titleFr: "Le vrai jeu", note: "Standard 0.75% Clearinghouse Fee active · Results 30 mins after each decision" },
+  real: { title: "Official Real Game", titleFr: "Le vrai jeu", note: "Standard 0.75% Escrow Protection Fee active · Results 30 mins after each decision" },
 }
 
 export const nextScheduleEvent = (now = Date.now()) => SCHEDULE.find((e) => e.at > now) ?? null

@@ -17,7 +17,7 @@ const VARIANTS = {
   operator: {
     icon: ShieldCheck,
     label: "TEAM 25 OPERATOR EYES ONLY",
-    detail: "Restricted exclusively to Clearinghouse Operators.",
+    detail: "Restricted exclusively to Hub Operators (Team 25).",
     className: "border-gold/50 bg-gold/10 text-gold",
   },
 } as const

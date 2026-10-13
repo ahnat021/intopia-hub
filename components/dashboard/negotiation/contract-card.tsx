@@ -218,6 +218,14 @@ export function ContractCard({ contract, viewerId, locked, closed, canRate, onFi
             ))}
             <dt className="font-semibold">Total</dt>
             <dd className="text-right font-mono font-bold">{formatUSD(contract.totalValue)}</dd>
+            {contract.clearing_fee != null && (
+              <>
+                <dt className="text-muted-foreground">Escrow fee</dt>
+                <dd className="text-right font-mono">
+                  {contract.fee_waived ? <><s className="text-muted-foreground">0.75%</s> → $0</> : formatUSD(contract.clearing_fee)}
+                </dd>
+              </>
+            )}
           </dl>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setReviewOpen(false)}>Cancel</Button>

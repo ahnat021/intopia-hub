@@ -1,12 +1,12 @@
 "use client"
 
 import { useEffect, useState, useSyncExternalStore } from "react"
-import { ClearinghouseCrest } from "@/components/brand-mark"
+import { HubCrest } from "@/components/brand-mark"
 
 const BOOT_KEY = "intopia_boot_seen"
 const DURATION_MS = 2500
 const STEPS = [
-  "INITIALIZING INTOPIA CLEARINGHOUSE ENGINE...",
+  "INITIALIZING INTOPIA HUB TRADE ENGINE...",
   "SYNCING 75 COHORT TEAMS (NA • EU • CHINA)...",
   "LOADING 37 DATALOG RESEARCH INSTRUMENTS...",
   "VERIFYING SUPABASE RLS ENCRYPTION...",
@@ -67,10 +67,10 @@ export function BootSplash() {
       >
         Skip Intro
       </button>
-      <ClearinghouseCrest animated className="relative size-32 drop-shadow-[0_0_24px_rgba(16,185,129,0.45)] sm:size-40" />
+      <HubCrest animated className="relative size-32 drop-shadow-[0_0_24px_rgba(16,185,129,0.45)] sm:size-40" />
       <div className="relative flex flex-col items-center gap-2 text-center">
         <p className="font-serif text-2xl font-bold tracking-[0.2em] text-amber-400 sm:text-3xl">INTOPIA HUB</p>
-        <p className="font-mono text-[11px] tracking-[0.3em] text-emerald-400">GLOBAL CLEARINGHOUSE</p>
+        <p className="font-mono text-[11px] tracking-[0.3em] text-emerald-400">GLOBAL B2B TRADE NETWORK</p>
       </div>
       <div className="relative flex w-full max-w-md flex-col gap-2">
         <div className="h-1 overflow-hidden rounded-full bg-slate-800">

@@ -41,7 +41,7 @@ function exportPdf(c: Contract, names: Record<string, string>) {
     tr.insertCell().textContent = v
   }
   const h = doc.createElement("h1")
-  h.textContent = "Intopia Hub Clearinghouse — Executed Contract"
+  h.textContent = "Intopia Hub — Executed Contract"
   doc.body.append(h, table)
   w.print()
 }

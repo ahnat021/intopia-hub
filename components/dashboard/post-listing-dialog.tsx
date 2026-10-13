@@ -30,8 +30,7 @@ import type { NewListingInput } from "@/lib/hub-store"
 const TYPE_OPTIONS: { value: ListingType; label: string }[] = [
   { value: "BUY", label: "Buy request" },
   { value: "SELL", label: "Sell offer" },
-  { value: "PARTNERSHIP", label: "Partnership / JV" },
-  { value: "RND", label: "R&D / Patent license" },
+  { value: "OTHER", label: "Other (MR cost-split, services…)" },
 ]
 
 function FieldError({ children }: { children?: string | null }) {

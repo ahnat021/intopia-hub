@@ -1,10 +1,10 @@
 import { cn } from "@/lib/utils"
 
-/** Global Clearinghouse Crest: interlocking hexagon + diamond in emerald and champagne gold. */
-export function ClearinghouseCrest({ className, animated }: { className?: string; animated?: boolean }) {
+/** Intopia Hub crest: interlocking hexagon + diamond in emerald and champagne gold. */
+export function HubCrest({ className, animated }: { className?: string; animated?: boolean }) {
   const draw = animated ? "crest-draw" : undefined
   return (
-    <svg viewBox="0 0 64 64" fill="none" className={className} role="img" aria-label="Intopia Hub Clearinghouse crest">
+    <svg viewBox="0 0 64 64" fill="none" className={className} role="img" aria-label="Intopia Hub crest">
       <defs>
         <filter id="crest-glow" x="-50%" y="-50%" width="200%" height="200%">
           <feGaussianBlur stdDeviation="1.4" result="b" />
@@ -33,7 +33,7 @@ export function BrandMark({ className }: { className?: string; priority?: boolea
         className ?? "size-9",
       )}
     >
-      <ClearinghouseCrest className="size-full" />
+      <HubCrest className="size-full" />
     </span>
   )
 }

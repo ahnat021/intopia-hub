@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
+import { FeeSummary } from "@/components/hub/fee-summary"
 import {
   DELIVERY_INFO,
   GRADES,
@@ -280,6 +281,7 @@ export function ContractForm({ listing, threadId, viewer, counterparty, locked, 
           <p className="font-mono text-lg font-bold tabular-nums">{formatUSD(totalValue || 0)}</p>
         </div>
         <div className="flex gap-2">
+          <FeeSummary contractValue={totalValue} className="mr-auto w-full" />
           <Button type="button" variant="ghost" size="sm" onClick={onCancel}>Cancel</Button>
           <Button type="submit" size="sm" disabled={locked}>
             <FileSignature aria-hidden />

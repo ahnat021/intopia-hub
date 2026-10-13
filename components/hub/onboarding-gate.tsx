@@ -29,7 +29,7 @@ interface Props {
 const RULES = [
   "If a contract is not respected, the Administrator may impose a monetary penalty based on the terms of the contract.",
   "In the absence of a contract provision for penalties, a discretionary penalty may be attributed.",
-  "I have read the game rules: penalties, contracts, the 0.75% Clearinghouse & Escrow Protection Fee, and fair-play conduct.",
+  "I have read the game rules: penalties, contracts, the 0.75% Escrow Protection Fee, and fair-play conduct.",
   "If the website has a bug or crash it will be fixed as soon as possible, but Team 25 and the hub administrators are not responsible for resulting losses.",
 ]
 
@@ -79,13 +79,13 @@ export function OnboardingGate({ team, open, mode = "onboard", signed, onSign, o
         <DialogHeader>
           {mode === "onboard" && <p className="font-mono text-xs tracking-widest text-gold">STEP {stepIndex} OF 3</p>}
           <DialogTitle className="font-serif text-xl">
-            {step === "waiver" ? "Fair-Play & Clearinghouse Waiver" : step === "promo" ? "Trial Phase Promo Code" : mode === "edit" ? "Edit Team Profile" : "Team Roster & Contact Logbook"}
+            {step === "waiver" ? "Fair-Play & Hub Waiver" : step === "promo" ? "Trial Phase Promo Code" : mode === "edit" ? "Edit Team Profile" : "Team Roster & Contact Logbook"}
           </DialogTitle>
           <DialogDescription>
             {step === "waiver"
               ? `${team.name} must accept the hub rules before trading.`
               : step === "promo"
-                ? `Every cleared trade carries a small ${CLEARING_FEE_LABEL}.`
+                ? `Every executed trade carries a small ${CLEARING_FEE_LABEL}.`
                 : "Add 1 to 8 members and choose exactly one Team Leader. This appears in the public Cohort Logbook."}
           </DialogDescription>
         </DialogHeader>

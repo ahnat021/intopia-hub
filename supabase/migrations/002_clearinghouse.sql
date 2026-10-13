@@ -1,4 +1,4 @@
--- Intopia Hub · Clearinghouse overhaul (idempotent; safe to re-run).
+-- Intopia Hub · Platform overhaul (idempotent; safe to re-run).
 -- Run in the Supabase SQL Editor after schema.sql.
 
 -- Team profile, onboarding, promo and intrusion protection.
@@ -25,6 +25,10 @@ alter table public.teams add column if not exists "waiver_signed_at" timestamptz
 -- Marketplace is now Buy / Sell / Other (legacy values kept so old rows stay valid).
 alter table public.listings drop constraint if exists "listings_type_check";
 alter table public.listings add constraint "listings_type_check" check ("type" in ('BUY', 'SELL', 'OTHER', 'PARTNERSHIP', 'RND'));
+
+-- Escrow Protection Fee recorded per contract (0 while INTOPIATRIAL waiver is active).
+alter table public.contracts add column if not exists "clearing_fee" numeric not null default 0;
+alter table public.contracts add column if not exists "fee_waived" boolean not null default false;
 
 -- Free-form team-to-team chat with capped attachments.
 create table if not exists public.chat_messages (

@@ -92,6 +92,8 @@ export interface Contract {
   revision: number
   finalizedByAdmin?: boolean | null
   adminOverridden?: boolean | null
+  clearing_fee?: number | null
+  fee_waived?: boolean | null
 }
 
 export interface Thread {

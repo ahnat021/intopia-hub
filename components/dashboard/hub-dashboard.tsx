@@ -29,6 +29,8 @@ import { ObligationsTracker } from "@/components/hub/obligations-tracker"
 import { ChatWorkspace } from "@/components/hub/chat-workspace"
 import { CohortLogbook } from "@/components/hub/cohort-logbook"
 import { MrCatalog } from "@/components/hub/mr-catalog"
+import { FeeSummary } from "@/components/hub/fee-summary"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 type Workspace = "market" | "contracts" | "chat" | "logbook"
 
@@ -153,10 +155,15 @@ export function HubDashboard() {
       <Tabs value={workspace} onValueChange={(v) => setWorkspace(v as Workspace)} className="mx-auto max-w-[1440px] gap-0 px-4 pt-6 sm:px-6 lg:px-8">
         <TabsList className="h-auto w-full flex-wrap justify-start gap-1 p-1 sm:w-auto" aria-label="Workspaces">
           {WORKSPACES.map((w) => (
-            <TabsTrigger key={w.id} value={w.id} title={w.hint} className="gap-2 px-3 py-2">
-              <w.icon className="size-4" aria-hidden />
-              {w.label}
-            </TabsTrigger>
+            <Tooltip key={w.id}>
+              <TooltipTrigger asChild>
+                <TabsTrigger value={w.id} className="gap-2 px-3 py-2">
+                  <w.icon className="size-4" aria-hidden />
+                  {w.label}
+                </TabsTrigger>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">{w.hint}</TooltipContent>
+            </Tooltip>
           ))}
         </TabsList>
         <p className="mt-2 text-xs text-muted-foreground">{WORKSPACES.find((w) => w.id === workspace)?.hint}</p>
@@ -165,9 +172,12 @@ export function HubDashboard() {
           <div className="grid gap-4 pb-8 lg:grid-cols-12 lg:gap-6">
             <MetricsStrip data={metrics} />
             <div className="flex min-w-0 flex-col gap-4 lg:col-span-8 lg:gap-6">
-              <div role="note" className="glass-card rounded-lg border border-gold/50 p-4 text-sm leading-relaxed">
-                <strong className="font-serif text-gold">Market Liquidity Mandate.</strong> Every trade cleared on Intopia Hub is escrow-protected and carries a{" "}
-                {CLEARING_FEE_LABEL}, deducted automatically at settlement.
+              <div role="note" className="glass-card flex flex-col gap-3 rounded-lg border border-gold/50 p-4 text-sm leading-relaxed">
+                <p>
+                  <strong className="font-serif text-gold">Market Liquidity Mandate.</strong> Every trade executed on Intopia Hub is escrow-protected and carries an{" "}
+                  {CLEARING_FEE_LABEL}, split evenly between buyer and seller.
+                </p>
+                <FeeSummary />
               </div>
               <VisibilityPill scope="public" />
               <LiveMarketplace
