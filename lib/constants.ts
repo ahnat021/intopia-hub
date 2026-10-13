@@ -3,10 +3,10 @@
  * LinkedIn URLs here; nothing else needs to change.
  */
 export const TEAM_25_MEMBERS: { name: string; role: string; imageUrl: string; linkedInUrl: string }[] = [
-  { name: "Alexander Hnatovsky", role: "Co-founder · Hub Lead", imageUrl: "/images/team-25/headshot-1.png", linkedInUrl: "https://www.linkedin.com/in/alexander-hnatovsky" },
-  { name: "Team 25 Operator", role: "Co-founder · Market Operations", imageUrl: "/images/team-25/headshot-2.png", linkedInUrl: "https://www.linkedin.com/" },
-  { name: "Team 25 Operator", role: "Co-founder · Risk & Compliance", imageUrl: "/images/team-25/headshot-3.png", linkedInUrl: "https://www.linkedin.com/" },
-  { name: "Team 25 Operator", role: "Co-founder · Data & Research", imageUrl: "/images/team-25/headshot-4.png", linkedInUrl: "https://www.linkedin.com/" },
+  { name: "Alexander Hnatovsky", role: "Co-founder · Hub Lead", imageUrl: "/images/team-25/alexander-hnatovsky.png", linkedInUrl: "https://www.linkedin.com/in/alexander-hnatovsky" },
+  { name: "David Renaud", role: "Co-founder · Market Operations", imageUrl: "/images/team-25/david-renaud.png", linkedInUrl: "https://ca.linkedin.com/in/davidrenaudca" },
+  { name: "Jamie Scott", role: "Co-founder · Risk & Compliance", imageUrl: "/images/team-25/jamie-scott.png", linkedInUrl: "https://ca.linkedin.com/in/jamie-scott2" },
+  { name: "Yasmine Ly", role: "Co-founder · Data & Research", imageUrl: "/images/team-25/yasmine-ly.png", linkedInUrl: "https://ca.linkedin.com/in/yasmine-ly-" },
 ]
 
 export const ADMIN_LOGIN_EMAIL = "alexander.hnatovsky@gmail.com"
