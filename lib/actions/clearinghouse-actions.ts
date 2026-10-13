@@ -54,8 +54,20 @@ export async function redeemPromo(code: string): Promise<ActionResult> {
   if (!teamId) return fail("Sign in as a team first.")
   if (String(code ?? "").trim().toUpperCase() !== PROMO_CODE) return fail("That promo code isn't valid.")
   if (Date.now() > PROMO_EXPIRES_AT) return fail("INTOPIATRIAL expired when Market Test Period 7 ended.")
-  const { error } = await db().from("teams").update({ promo_code_used: PROMO_CODE, promo_redeemed_at: Date.now() }).eq("id", teamId)
-  return error ? fail("Could not redeem the code. Try again.") : ok(undefined)
+  let { error } = await db().from("teams").update({ promo_code_used: PROMO_CODE, promo_redeemed_at: Date.now() }).eq("id", teamId)
+  // promo_redeemed_at only exists if migration 002 ran; the waiver itself only needs promo_code_used.
+  if (error && (error.code === "PGRST204" || error.code === "42703")) {
+    ;({ error } = await db().from("teams").update({ promo_code_used: PROMO_CODE }).eq("id", teamId))
+  }
+  if (error) {
+    console.error("[redeemPromo]", error.code, error.message)
+    return fail(
+      error.code === "PGRST204" || error.code === "42703"
+        ? "Promo storage isn't set up yet — ask the admin to run migration 003_fixes.sql."
+        : "Could not redeem the code. Try again.",
+    )
+  }
+  return ok(undefined)
 }
 
 export async function rateCounterparty(toTeam: string, stars: number, comment: string, stage: "inquiry" | "negotiation" | "post_contract"): Promise<ActionResult> {

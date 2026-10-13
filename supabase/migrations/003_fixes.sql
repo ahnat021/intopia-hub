@@ -6,6 +6,7 @@ alter table public.teams add column if not exists kyc_status text default 'unreg
 alter table public.teams add column if not exists waiver_signed boolean not null default false;
 alter table public.teams add column if not exists waiver_signed_at timestamptz;
 alter table public.teams add column if not exists promo_code_used text;
+alter table public.teams add column if not exists promo_redeemed_at bigint;
 alter table public.teams add column if not exists team_leader_name text;
 alter table public.teams add column if not exists team_members jsonb not null default '[]'::jsonb;
 alter table public.teams add column if not exists whatsapp_number text;
