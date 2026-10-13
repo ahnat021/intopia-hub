@@ -70,7 +70,12 @@ async function teamId() {
   return s?.role === "team" ? s.teamId : null
 }
 
-export async function GET(req: NextRequest) {
+  // Both directions of a conversation share one thread: 25 and 7 -> "7-25".
+  function threadIdFor(a: number, b: number) {
+  return [a, b].sort((x, y) => x - y).join("-")
+  }
+
+  export async function GET(req: NextRequest) {
   const me = await teamId()
   if (!me) return NextResponse.json({ error: "Sign in as a team." }, { status: 401 })
   const meNum = toDbTeam(me)
@@ -127,9 +132,10 @@ export async function POST(req: NextRequest) {
   // A UUID fits both a uuid and a text id column.
   const id = crypto.randomUUID()
   const row: Record<string, unknown> = {
-    id,
-    sender_team: meNum,
-    receiver_team: toNum,
+  id,
+  thread_id: threadIdFor(meNum, toNum),
+  sender_team: meNum,
+  receiver_team: toNum,
     message_text: body,
     created_at: new Date().toISOString(),
   }
