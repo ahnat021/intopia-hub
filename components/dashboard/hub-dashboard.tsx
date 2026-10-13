@@ -21,6 +21,7 @@ import { PostListingDialog } from "./post-listing-dialog"
 import { RulebookSheet } from "./rulebook-sheet"
 import { ActivityFeed, Announcements, Leaderboard, MarketPulse, TopPartners } from "./sidebar-widgets"
 import { TopBar } from "./top-bar"
+import { Team25Hero } from "@/components/team-25-hero"
 
 export function HubDashboard() {
   const { team, signOut } = useAuth()
@@ -84,6 +85,7 @@ export function HubDashboard() {
         <PostListingDialog teamId={team.id} locked={lockedOut || !signed} onPost={postListing} />
       </TopBar>
       <HubHeader />
+      <Team25Hero />
 
       {lockedOut && (
         <div role="alert" className="border-b border-warning/40 bg-warning/10">

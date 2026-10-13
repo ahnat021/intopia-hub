@@ -2,7 +2,18 @@
 
 import { db, isSupabaseConfigured } from "@/lib/supabaseClient"
 import { clearSession, setSession } from "@/lib/server/session"
-import { EMAIL_RE, LOCKOUT_MS, MAX_FAILED_ATTEMPTS, consumeOtp, hashSecret, normalizeEmail, verifySecret } from "@/lib/server/security"
+import {
+  EMAIL_RE,
+  LOCKOUT_MS,
+  MAX_FAILED_ATTEMPTS,
+  consumeOtp,
+  hashSecret,
+  loginLockedUntil,
+  normalizeEmail,
+  reportIntrusion,
+  verifySecret,
+} from "@/lib/server/security"
+import { officialEmail } from "@/lib/constants"
 import type { ActionResult } from "@/lib/hub-types"
 
 const PIN_RE = /^\d{4}$/
@@ -23,18 +34,20 @@ export interface RegisterInput {
 
 export async function registerTeam(input: RegisterInput): Promise<ActionResult> {
   if (!isSupabaseConfigured()) return NOT_READY
-  const email = normalizeEmail(clean(input.email, 254))
   const company = clean(input.company, 80)
   const whatsapp = clean(input.whatsapp, 32)
-  if (!EMAIL_RE.test(email)) return { ok: false, error: "Enter a valid email address." }
   if (!PIN_RE.test(input.pin)) return { ok: false, error: "PIN must be exactly 4 digits." }
   if (company.length < 2) return { ok: false, error: "Enter your company name." }
   if (!REGIONS.includes(input.region)) return { ok: false, error: "Choose your home region." }
   if (!/^\+?[\d\s()-]{7,20}$/.test(whatsapp)) return { ok: false, error: "Enter a valid WhatsApp number." }
 
-  const { data: team } = await db().from("teams").select("id, kyc").eq("id", clean(input.teamId, 8)).maybeSingle()
+  const { data: team } = await db().from("teams").select("id, number, kyc").eq("id", clean(input.teamId, 8)).maybeSingle()
   if (!team) return { ok: false, error: "Unknown team." }
   if (team.kyc !== "unregistered") return { ok: false, error: "This team is already registered." }
+  if (await loginLockedUntil(team.id))
+    return { ok: false, error: "Login is temporarily locked after an unauthorized-attempt report. Try again in 10 minutes." }
+  const email = officialEmail(team.number)
+  void input.email
 
   if (!(await consumeOtp(email, "team-register", clean(input.code, 6))))
     return { ok: false, error: "That code is invalid or expired. Request a new one." }
@@ -52,6 +65,23 @@ export async function registerTeam(input: RegisterInput): Promise<ActionResult> 
     return { ok: false, error: error.code === "23505" ? "This email is already linked to a team." : "Registration failed. Try again." }
   }
   await setSession({ role: "team", teamId: team.id })
+  return { ok: true, data: undefined }
+}
+
+/** On-screen "Not Me": only acts when a code was actually requested for this team in the last 10 minutes. */
+export async function reportNotMe(teamId: string): Promise<ActionResult> {
+  if (!isSupabaseConfigured()) return NOT_READY
+  const { data: team } = await db().from("teams").select("id, number").eq("id", clean(teamId, 8)).maybeSingle()
+  if (!team) return { ok: false, error: "Unknown team." }
+  const { data: pending } = await db()
+    .from("email_otps")
+    .select("id")
+    .eq("email", officialEmail(team.number))
+    .is("verifiedAt", null)
+    .gt("createdAt", Date.now() - 10 * 60 * 1000)
+    .limit(1)
+  if (!pending?.length) return { ok: false, error: "There is no pending login code for this team." }
+  await reportIntrusion(team.id)
   return { ok: true, data: undefined }
 }
 

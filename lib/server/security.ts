@@ -45,6 +45,48 @@ export async function issueOtp(email: string, purpose: OtpPurpose) {
   return code
 }
 
+export const INTRUSION_LOCK_MS = 10 * 60 * 1000
+const NOT_ME_TTL_MS = 60 * 60 * 1000
+
+const secretKey = () => process.env.SESSION_SECRET || process.env.SUPABASE_JWT_SECRET || ""
+
+export function notMeToken(teamId: string) {
+  const exp = Date.now() + NOT_ME_TTL_MS
+  return `${exp}.${createHmac("sha256", secretKey()).update(`notme:${teamId}:${exp}`).digest("hex")}`
+}
+
+export function verifyNotMeToken(teamId: string, token: string) {
+  const [expRaw, sig] = token.split(".")
+  const exp = Number(expRaw)
+  if (!sig || !Number.isFinite(exp) || exp < Date.now()) return false
+  const expected = Buffer.from(createHmac("sha256", secretKey()).update(`notme:${teamId}:${exp}`).digest("hex"))
+  const given = Buffer.from(sig)
+  return given.length === expected.length && timingSafeEqual(given, expected)
+}
+
+/** Burns the team's pending code, locks logins for 10 minutes and flags the team for the admin. */
+export async function reportIntrusion(teamId: string) {
+  const { data: team } = await db().from("teams").select("id, number, security_flag_count").eq("id", teamId).maybeSingle()
+  if (!team) return false
+  const email = `ott${String(team.number).padStart(2, "0")}@intopsim.com`
+  await db().from("email_otps").update({ attempts: 999 }).eq("email", email).is("verifiedAt", null)
+  await db()
+    .from("teams")
+    .update({
+      login_locked_until: Date.now() + INTRUSION_LOCK_MS,
+      security_flag_count: (team.security_flag_count ?? 0) + 1,
+      last_intrusion_reported_at: new Date().toISOString(),
+    })
+    .eq("id", teamId)
+  return true
+}
+
+export async function loginLockedUntil(teamId: string) {
+  const { data } = await db().from("teams").select("login_locked_until").eq("id", teamId).maybeSingle()
+  const until = data?.login_locked_until as number | null | undefined
+  return until && until > Date.now() ? until : null
+}
+
 /** Checks the most recent code for this inbox; burns it on success and counts failed guesses. */
 export async function consumeOtp(email: string, purpose: OtpPurpose, code: string) {
   const { data } = await db()

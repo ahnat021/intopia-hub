@@ -1,4 +1,4 @@
-import { ArrowDownLeft, ArrowUpRight, FlaskConical, Handshake, Plane, Ship, type LucideIcon } from "lucide-react"
+import { ArrowDownLeft, ArrowUpRight, FlaskConical, Handshake, Plane, Shapes, Ship, type LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { DeliveryMode, ListingStatus, ListingType } from "@/lib/domain"
 
@@ -7,6 +7,7 @@ const SHORT_TYPE_LABEL: Record<ListingType, string> = {
   SELL: "Sell",
   PARTNERSHIP: "JV",
   RND: "License",
+  OTHER: "Other",
 }
 
 const STATUS_LABEL: Record<ListingStatus, string> = {
@@ -49,6 +50,7 @@ export const TYPE_META: Record<ListingType, { icon: LucideIcon; className: strin
   SELL: { icon: ArrowUpRight, className: "text-emerald-400 bg-emerald-500/15" },
   PARTNERSHIP: { icon: Handshake, className: "text-violet-400 bg-violet-500/15" },
   RND: { icon: FlaskConical, className: "text-amber-400 bg-amber-500/15" },
+  OTHER: { icon: Shapes, className: "text-slate-300 bg-slate-500/15" },
 }
 
 export function TypeIcon({ type, className }: { type: ListingType; className?: string }) {
