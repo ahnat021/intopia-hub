@@ -239,6 +239,18 @@ export async function adminScrubTeam(teamId: string, mode: "trades" | "full"): P
       .update({ kyc: "unregistered", team_members: [], team_leader_name: null, whatsapp: null, contact_email: null, certified: false, waiverName: null, waiverAt: null, promo_code_used: null })
       .eq("id", teamId)
     if (error) return fail("Activity cleared, but the profile reset failed.")
+    // Columns added by migration 003; ignored if that migration hasn't been run yet.
+    await db()
+      .from("teams")
+      .update({
+        kyc_status: "unregistered",
+        waiver_signed: false,
+        waiver_signed_at: null,
+        whatsapp_number: null,
+        security_flag_count: 0,
+        last_intrusion_reported_at: null,
+      })
+      .eq("id", teamId)
   }
   return ok(undefined)
 }
