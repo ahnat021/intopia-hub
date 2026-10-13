@@ -59,6 +59,9 @@ create table if not exists public.team_ratings (
 alter table public.chat_messages enable row level security;
 alter table public.team_ratings enable row level security;
 
+-- Tables created in the SQL Editor aren't always exposed to the API roles automatically.
+grant all on public.chat_messages, public.team_ratings to service_role;
+
 -- Private bucket for chat files; 2 MB hard cap enforced by storage too.
 insert into storage.buckets ("id", "name", "public", "file_size_limit", "allowed_mime_types")
 values (
@@ -66,3 +69,6 @@ values (
   array['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/png']
 )
 on conflict ("id") do update set "file_size_limit" = excluded."file_size_limit", "allowed_mime_types" = excluded."allowed_mime_types";
+
+-- Make the REST API see the new tables immediately.
+notify pgrst, 'reload schema';

@@ -6,6 +6,25 @@ import { CHAT_BUCKET, MAX_ATTACHMENT_BYTES, attachmentMime } from "@/lib/constan
 
 const ID = /^[\w-]{1,60}$/
 
+type DbError = { code?: string; message?: string; details?: string | null; hint?: string | null }
+
+function chatError(stage: string, error: DbError) {
+  console.error(`[intopia:chat] ${stage} failed`, error)
+  const code = error.code ?? ""
+  const fix =
+    code === "PGRST205" || code === "PGRST204" || code === "42P01"
+      ? "Supabase's API cache hasn't picked up chat_messages yet. In the SQL Editor run: notify pgrst, 'reload schema';"
+      : code === "42501"
+        ? "The API role can't access chat_messages. In the SQL Editor run: grant all on public.chat_messages to service_role, authenticated, anon;"
+        : code === "42703" || code === "PGRST100"
+          ? "chat_messages columns don't match (expected id, fromTeam, toTeam, body, createdAt, attachment*)."
+          : code === "23503"
+            ? "One of the teams in this conversation no longer exists."
+            : ""
+  const detail = [error.message, code && `(${code})`].filter(Boolean).join(" ")
+  return NextResponse.json({ error: fix ? `${fix} — ${detail}` : `Chat error: ${detail || "unknown"}` }, { status: 500 })
+}
+
 async function teamId() {
   const s = await getSession()
   return s?.role === "team" ? s.teamId : null
@@ -17,7 +36,8 @@ export async function GET(req: NextRequest) {
   const other = req.nextUrl.searchParams.get("with")
   const d = db()
   if (!other) {
-    const { data } = await d.from("chat_messages").select("fromTeam,toTeam,createdAt").or(`fromTeam.eq.${me},toTeam.eq.${me}`).order("createdAt", { ascending: false }).limit(500)
+    const { data, error } = await d.from("chat_messages").select("fromTeam,toTeam,createdAt").or(`fromTeam.eq.${me},toTeam.eq.${me}`).order("createdAt", { ascending: false }).limit(500)
+    if (error) return chatError("list partners", error)
     const partners = [...new Set((data ?? []).map((m) => (m.fromTeam === me ? m.toTeam : m.fromTeam)))]
     return NextResponse.json({ partners })
   }
@@ -28,7 +48,7 @@ export async function GET(req: NextRequest) {
     .or(`and(fromTeam.eq.${me},toTeam.eq.${other}),and(fromTeam.eq.${other},toTeam.eq.${me})`)
     .order("createdAt", { ascending: true })
     .limit(300)
-  if (error) return NextResponse.json({ error: "Chat isn't set up yet — run migration 002." }, { status: 500 })
+  if (error) return chatError("load thread", error)
   const messages = await Promise.all(
     (data ?? []).map(async (m) => {
       if (!m.attachmentPath) return m
@@ -59,10 +79,13 @@ export async function POST(req: NextRequest) {
     if (!mime) return NextResponse.json({ error: "Only PDF, Word, JPEG or PNG files are allowed." }, { status: 415 })
     const path = `${me}/${row.id}.${ext}`
     const { error } = await db().storage.from(CHAT_BUCKET).upload(path, await file.arrayBuffer(), { contentType: mime, upsert: false })
-    if (error) return NextResponse.json({ error: "Upload failed. Is the chat-attachments bucket created?" }, { status: 500 })
+    if (error) {
+      console.error("[intopia:chat] upload failed", error)
+      return NextResponse.json({ error: `Upload failed: ${error.message}` }, { status: 500 })
+    }
     Object.assign(row, { attachmentPath: path, attachmentName: file.name.slice(0, 120), attachmentSize: file.size, attachmentMime: mime })
   }
   const { error } = await db().from("chat_messages").insert(row)
-  if (error) return NextResponse.json({ error: "Message not sent." }, { status: 500 })
+  if (error) return chatError("send message", error)
   return NextResponse.json({ ok: true })
 }
