@@ -5,13 +5,19 @@ import { PendingVerification } from "@/components/auth/pending-verification"
 import { HubDashboard } from "@/components/dashboard/hub-dashboard"
 import { useAuth } from "@/lib/auth-context"
 import { SiteFooter } from "@/components/site-footer"
+import { DonationPrompt } from "@/components/donation-gate"
 
 function Gate() {
   const { status, team } = useAuth()
   if (status === "loading") return <div className="min-h-dvh" aria-busy="true" />
   if (status === "signedOut" || !team) return <LoginGate />
   if (team.kyc !== "approved") return <PendingVerification />
-  return <HubDashboard />
+  return (
+    <>
+      <HubDashboard />
+      <DonationPrompt />
+    </>
+  )
 }
 
 export function AppShell() {

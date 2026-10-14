@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { TeamCombobox } from "@/components/team-combobox"
 import { BrandMark } from "@/components/brand-mark"
+import { BenefitsSection } from "@/components/auth/benefits-section"
 import { useAuth } from "@/lib/auth-context"
 import { useHub } from "@/lib/hub-store"
 import { useI18n } from "@/lib/i18n"
@@ -301,7 +302,7 @@ export function LoginGate() {
   const pendingCount = teams.filter((x) => x.kyc === "pending").length || kycQueue.length
 
   return (
-    <main className="relative flex min-h-dvh items-center justify-center overflow-hidden px-4 py-10">
+    <main className="relative flex min-h-dvh flex-col items-center justify-center gap-10 overflow-hidden px-4 pt-20 pb-14">
       <Image src="/images/globe-network.png" alt="" fill priority sizes="100vw" className="pointer-events-none object-cover opacity-20" />
       <div aria-hidden className="pointer-events-none absolute inset-0 bg-background/75" />
 
@@ -443,6 +444,8 @@ export function LoginGate() {
           )}
         </section>
       </div>
+
+      <BenefitsSection />
     </main>
   )
 }
