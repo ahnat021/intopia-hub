@@ -1,16 +1,18 @@
 "use client"
 
-import { activePeriodId } from "@/lib/constants"
+import { activePeriodId, formatToronto, periodEndAt } from "@/lib/constants"
 import { CalendarClock, Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { formatHMS, useDeadline } from "@/hooks/use-countdown"
-import { formatClock } from "@/lib/domain"
 import { useHub } from "@/lib/hub-store"
+import { useI18n } from "@/lib/i18n"
 
 export function PeriodStatus() {
   const { settings } = useHub()
-  const remaining = useDeadline(settings.deadlineAt)
-  const locked = settings.tradingLocked || remaining === 0
+  const { t } = useI18n()
+  const endAt = periodEndAt(settings.period)
+  const remaining = useDeadline(endAt)
+  const locked = settings.tradingLocked
   const isCritical = remaining != null && remaining > 0 && remaining <= 15 * 60
   const [h, m, s] = formatHMS(remaining ?? 0)
 
@@ -37,12 +39,12 @@ export function PeriodStatus() {
         </div>
         <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <CalendarClock className="size-3.5" aria-hidden />
-          {settings.deadlineAt ? `Contracts lock at ${formatClock(settings.deadlineAt)}` : "The facilitator hasn't scheduled a lock time yet."}
+          {endAt ? `${t("period.endsAt")} · ${formatToronto(endAt)}` : t("period.noSchedule")}
         </p>
       </section>
 
       <section
-        aria-label="Time until deadline"
+        aria-label={t("period.timeLeft")}
         className={cn(
           "flex flex-col justify-center rounded-xl border p-4 sm:min-w-[230px]",
           isCritical ? "border-destructive/40 bg-destructive/10" : "border-gold/40 bg-gold/10",
@@ -50,7 +52,7 @@ export function PeriodStatus() {
       >
         <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
           <Clock className="size-3.5" aria-hidden />
-          Time Until Lock
+          {t("period.timeLeft")}
         </p>
         {remaining == null ? (
           <p className="mt-1 font-mono text-2xl font-semibold text-muted-foreground">--:--:--</p>

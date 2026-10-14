@@ -1,6 +1,6 @@
 "use client"
 
-import { activePeriodId } from "@/lib/constants"
+import { activePeriodId, periodEndAt } from "@/lib/constants"
 import type { ReactNode } from "react"
 import Link from "next/link"
 import { Clock, Crown, Lock, LogOut, Repeat } from "lucide-react"
@@ -16,7 +16,7 @@ import { useI18n } from "@/lib/i18n"
 export function TopBar({ team, onSignOut, children }: { team: Team; onSignOut: () => void; children?: ReactNode }) {
   const { settings, lockedOut } = useHub()
   const { t, locale, toggle: toggleLocale } = useI18n()
-  const remaining = useDeadline(settings.deadlineAt)
+  const remaining = useDeadline(periodEndAt(settings.period))
   const [h, m, s] = formatHMS(remaining ?? 0)
   const operator = isOperator(team.id)
 
@@ -59,7 +59,8 @@ export function TopBar({ team, onSignOut, children }: { team: Team; onSignOut: (
           <span className="rounded-md bg-secondary px-2 py-1 font-mono text-xs font-bold ring-1 ring-border">{activePeriodId(settings.period)}</span>
           <span
             role="timer"
-            aria-label="Time until contracts lock"
+            aria-label={t("period.timeLeft")}
+            title={t("period.timeLeft")}
             className={cn(
               "inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-mono text-xs font-semibold tabular-nums ring-1",
               lockedOut ? "bg-warning/10 text-warning ring-warning/30" : "bg-gold/10 text-foreground ring-gold/30",
