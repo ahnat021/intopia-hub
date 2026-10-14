@@ -9,8 +9,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import { useDebouncedValue } from "@/hooks/use-debounced-value"
-import { GRADES, OPERATING_AREAS, PRODUCT_INFO, formatUnits } from "@/lib/intopia-rules"
-import { isOperator, type Listing, type ListingType } from "@/lib/domain"
+import { GRADES, OPERATING_AREAS, PRODUCT_INFO, formatUSD, formatUnits } from "@/lib/intopia-rules"
+import { isFactory, isOperator, type Listing, type ListingType } from "@/lib/domain"
+
+function describeListing(l: Listing) {
+  if (isFactory(l)) return `Factory ${l.product}`
+  if (l.type === "BUY" || l.type === "SELL") return `Product ${l.product}`
+  return l.title
+}
 import { useI18n } from "@/lib/i18n"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { CounterpartyLabel, useCounterpartyText } from "@/components/hub/counterparty-label"
@@ -141,7 +147,7 @@ export const LiveMarketplace = memo(function LiveMarketplace({ listings, viewerI
               <TableHead className="pl-5">Status</TableHead>
               <TableHead>Type</TableHead>
               <TableHead>Counterparty</TableHead>
-              <TableHead>Product</TableHead>
+              <TableHead>Description</TableHead>
               <TableHead className="text-center">Grade</TableHead>
               <TableHead className="text-right">Quantity</TableHead>
               <TableHead>Region</TableHead>
@@ -165,6 +171,7 @@ export const LiveMarketplace = memo(function LiveMarketplace({ listings, viewerI
                 const hasContract = contractListingIds.has(l.id)
                 const label = hasContract ? "View Contract" : mine ? "View Offers" : l.status === "CLOSED" ? "Closed" : "Negotiate"
                 const operator = isOperator(l.teamId)
+                const factory = isFactory(l)
                 return (
                   <TableRow key={l.id} className={cn(l.isNew && "animate-row-flash", l.status === "CLOSED" && "opacity-60", operator && "operator-row")}>
                     <TableCell className="pl-5"><StatusBadge status={l.status} /></TableCell>
@@ -177,14 +184,21 @@ export const LiveMarketplace = memo(function LiveMarketplace({ listings, viewerI
                       )}
                     </TableCell>
                     <TableCell className="max-w-56">
-                      <p className="truncate text-sm font-medium">{l.type === "BUY" || l.type === "SELL" ? PRODUCT_INFO[l.product].name : l.title}</p>
-                      <p className="truncate text-xs text-muted-foreground">{l.unitPrice ? `$${l.unitPrice}/unit · ` : ""}{l.notes}</p>
+                      <p className="truncate text-sm font-medium">{describeListing(l)}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {l.unitPrice ? `${formatUSD(Number(l.unitPrice))}/${factory ? "factory" : "unit"} · ` : ""}
+                        {l.notes}
+                      </p>
                     </TableCell>
                     <TableCell className="text-center">
-                      <span className="inline-flex size-7 items-center justify-center rounded-md bg-secondary font-mono text-xs font-bold">{l.product}{l.grade}</span>
+                      {factory ? (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      ) : (
+                        <span className="inline-flex size-7 items-center justify-center rounded-md bg-secondary font-mono text-xs font-bold">{l.product}{l.grade}</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm tabular-nums whitespace-nowrap">
-                      {l.quantity ? formatUnits(l.quantity) : "—"}
+                      {!l.quantity ? "—" : factory ? Math.round(l.quantity).toString() : formatUnits(l.quantity)}
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-sm">{l.region}</TableCell>
                     <TableCell><DeliveryLabel mode={l.delivery} /></TableCell>
