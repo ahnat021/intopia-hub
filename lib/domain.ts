@@ -285,9 +285,13 @@ export const PROFESSOR_NAME = "Professor Tim"
  */
 export const PROFESSORS: { id: string; number: number; name: string; email: string | null }[] = [
   { id: PROFESSOR_TEAM_ID, number: 0, name: PROFESSOR_NAME, email: null },
-  { id: "prof2", number: 76, name: "Professor Milena Parent", email: "milena.parent@telfer.uottawa.ca" },
+  { id: "prof2", number: 99, name: "Professor Milena Parent", email: "milena.parent@telfer.uottawa.ca" },
 ]
 const PROFESSOR_BY_ID = new Map(PROFESSORS.map((p) => [p.id, p]))
+export const professorByEmail = (email: string) => {
+  const normalized = email.trim().toLowerCase()
+  return PROFESSORS.find((p) => p.email?.toLowerCase() === normalized)
+}
 export const isProfessor = (teamId: string | null | undefined) => !!teamId && PROFESSOR_BY_ID.has(teamId)
 export const professorName = (teamId: string) => PROFESSOR_BY_ID.get(teamId)?.name ?? PROFESSOR_NAME
 

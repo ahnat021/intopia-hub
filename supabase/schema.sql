@@ -24,7 +24,7 @@ language sql stable set search_path = '' as $$ select (extract(epoch from now())
 -- 1. teams (parent of almost everything)
 create table if not exists public.teams (
   "id" text primary key,
-  "number" int not null unique check ("number" between 0 and 75),
+  "number" int not null unique check ("number" between 0 and 99),
   "name" text not null,
   "company" text,
   "region" text check ("region" in ('North America', 'Europe', 'China')),
@@ -42,7 +42,7 @@ create table if not exists public.teams (
 alter table public.teams add column if not exists "waiverName" text;
 alter table public.teams add column if not exists "waiverAt" bigint;
 alter table public.teams drop constraint if exists "teams_number_check";
-alter table public.teams add constraint "teams_number_check" check ("number" between 0 and 75);
+alter table public.teams add constraint "teams_number_check" check ("number" between 0 and 99);
 
 -- 2. team_credentials ("teamId" text -> teams.id text)
 create table if not exists public.team_credentials (
@@ -237,6 +237,10 @@ on conflict do nothing;
 
 -- Professor Tim: game administrator seat (number 0, id 'prof')
 insert into public.teams ("id", "number", "name") values ('prof', 0, 'Professor Tim')
+on conflict do nothing;
+
+-- Professor Milena Parent: solo professor seat (Team 99, id 'prof2')
+insert into public.teams ("id", "number", "name") values ('prof2', 99, 'Professor Milena Parent')
 on conflict do nothing;
 
 -- Lock down: RLS on, no policies, no anon/authenticated access

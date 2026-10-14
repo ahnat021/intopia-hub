@@ -2,6 +2,7 @@ import "server-only"
 import { createHmac, randomBytes, randomInt, scrypt, timingSafeEqual } from "node:crypto"
 import { promisify } from "node:util"
 import { db } from "@/lib/supabaseClient"
+import { seatEmail } from "@/lib/domain"
 
 const scryptAsync = promisify(scrypt) as (password: string, salt: Buffer, keylen: number) => Promise<Buffer>
 
@@ -73,7 +74,7 @@ export function verifyNotMeToken(teamId: string, token: string) {
 export async function reportIntrusion(teamId: string) {
   const { data: team } = await db().from("teams").select("id, number, security_flag_count").eq("id", teamId).maybeSingle()
   if (!team) return false
-  const email = `ott${String(team.number).padStart(2, "0")}@intopsim.com`
+  const email = seatEmail(team.id, team.number)
   await db().from("email_otps").update({ attempts: 999 }).eq("email", email).is("verifiedAt", null)
   await db()
     .from("teams")

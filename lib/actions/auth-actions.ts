@@ -14,6 +14,7 @@ import {
   verifySecret,
 } from "@/lib/server/security"
 import { seatEmail } from "@/lib/domain"
+import { findSeat, resolveSeatId } from "@/lib/server/seats"
 import type { ActionResult } from "@/lib/hub-types"
 
 const PIN_RE = /^\d{4}$/
@@ -41,7 +42,8 @@ export async function registerTeam(input: RegisterInput): Promise<ActionResult> 
   if (!REGIONS.includes(input.region)) return { ok: false, error: "Choose your home region." }
   if (!/^\+?[\d\s()-]{7,20}$/.test(whatsapp)) return { ok: false, error: "Enter a valid WhatsApp number." }
 
-  const { data: team } = await db().from("teams").select("id, number, kyc").eq("id", clean(input.teamId, 8)).maybeSingle()
+  const { team, error: seatError } = await findSeat(resolveSeatId(input.teamId, input.email))
+  if (seatError) return { ok: false, error: seatError }
   if (!team) return { ok: false, error: "Unknown team." }
   if (team.kyc !== "unregistered") return { ok: false, error: "This team is already registered." }
   if (await loginLockedUntil(team.id))
