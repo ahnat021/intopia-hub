@@ -27,7 +27,7 @@ export const LOCKOUT_MS = 5 * 60 * 1000
 
 export type OtpPurpose = "team-register" | "admin-setup"
 const OTP_TTL_MS = 10 * 60 * 1000
-const OTP_MAX_ATTEMPTS = 5
+const OTP_BURNED = 999
 
 function otpHash(email: string, purpose: OtpPurpose, code: string) {
   const key = process.env.SESSION_SECRET || process.env.SUPABASE_JWT_SECRET || ""
@@ -75,7 +75,7 @@ export async function reportIntrusion(teamId: string) {
   const { data: team } = await db().from("teams").select("id, number, security_flag_count").eq("id", teamId).maybeSingle()
   if (!team) return false
   const email = seatEmail(team.id, team.number)
-  await db().from("email_otps").update({ attempts: 999 }).eq("email", email).is("verifiedAt", null)
+  await db().from("email_otps").update({ attempts: OTP_BURNED }).eq("email", email).is("verifiedAt", null)
   await db()
     .from("teams")
     .update({
@@ -93,9 +93,22 @@ export async function loginLockedUntil(teamId: string) {
   return until && until > Date.now() ? until : null
 }
 
-/** Checks the most recent code for this inbox; burns it on success and counts failed guesses. */
-export async function consumeOtp(email: string, purpose: OtpPurpose, code: string) {
-  const { data } = await db()
+/** Codes are always 6 digits (100000–999999), so the integer form round-trips without losing leading zeros. */
+export function parseOtpCode(raw: unknown) {
+  const trimmed = typeof raw === "string" ? raw.trim() : typeof raw === "number" ? String(raw) : ""
+  if (!/^\d{6}$/.test(trimmed)) return null
+  return parseInt(trimmed, 10)
+}
+
+/**
+ * Checks the most recent code for this inbox and burns it on success.
+ * Wrong guesses are not counted, so students can retry until the code expires;
+ * only a "Not Me" report (attempts = OTP_BURNED) invalidates a code early.
+ */
+export async function consumeOtp(email: string, purpose: OtpPurpose, rawCode: unknown) {
+  const code = parseOtpCode(rawCode)
+  if (code === null) return false
+  const { data, error } = await db()
     .from("email_otps")
     .select("id, codeHash, expiresAt, attempts, verifiedAt")
     .eq("email", email)
@@ -103,13 +116,14 @@ export async function consumeOtp(email: string, purpose: OtpPurpose, code: strin
     .order("createdAt", { ascending: false })
     .limit(1)
     .maybeSingle()
-  if (!data || data.verifiedAt || data.expiresAt < Date.now() || data.attempts >= OTP_MAX_ATTEMPTS) return false
-  const given = Buffer.from(otpHash(email, purpose, code))
+  if (error) throw new Error(error.message)
+  if (!data || data.verifiedAt || Number(data.expiresAt) < Date.now() || Number(data.attempts) >= OTP_BURNED) return false
+  const given = Buffer.from(otpHash(email, purpose, String(code)))
   const expected = Buffer.from(data.codeHash)
   const ok = given.length === expected.length && timingSafeEqual(given, expected)
-  await db()
-    .from("email_otps")
-    .update(ok ? { verifiedAt: Date.now() } : { attempts: data.attempts + 1 })
-    .eq("id", data.id)
+  if (ok) {
+    const { error: burnError } = await db().from("email_otps").update({ verifiedAt: Date.now() }).eq("id", data.id)
+    if (burnError) throw new Error(burnError.message)
+  }
   return ok
 }

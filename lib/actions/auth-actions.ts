@@ -13,6 +13,7 @@ import {
   hashSecret,
   loginLockedUntil,
   normalizeEmail,
+  parseOtpCode,
   reportIntrusion,
   verifySecret,
 } from "@/lib/server/security"
@@ -36,8 +37,23 @@ export interface RegisterInput {
   code: string
 }
 
+const INVALID_CODE = "Invalid code, please try again."
+
 export async function registerTeam(input: RegisterInput): Promise<ActionResult> {
   if (!isSupabaseConfigured()) return NOT_READY
+  try {
+    return await registerTeamUnchecked(input)
+  } catch (e) {
+    const code = (e as { code?: string })?.code
+    const message = e instanceof Error ? e.message : String(e)
+    console.error("[intopia:auth] registration failed:", code ?? "", message)
+    if (code === "22P02" || /invalid input syntax/i.test(message)) return { ok: false, error: INVALID_CODE }
+    return { ok: false, error: "We couldn't verify your code right now. Please try again." }
+  }
+}
+
+async function registerTeamUnchecked(input: RegisterInput): Promise<ActionResult> {
+  if (parseOtpCode(input.code) === null) return { ok: false, error: INVALID_CODE }
   const company = clean(input.company, 80)
   const whatsapp = clean(input.whatsapp, 32)
   if (!PIN_RE.test(input.pin)) return { ok: false, error: "PIN must be exactly 4 digits." }
@@ -45,7 +61,7 @@ export async function registerTeam(input: RegisterInput): Promise<ActionResult> 
   if (!REGIONS.includes(input.region)) return { ok: false, error: "Choose your home region." }
   if (!/^\+?[\d\s()-]{7,20}$/.test(whatsapp)) return { ok: false, error: "Enter a valid WhatsApp number." }
 
-  const { team, error: seatError } = await findSeat(resolveSeatId(input.teamId, input.email))
+  const { team, error: seatError } = await findSeat(resolveSeatId(clean(input.teamId, 8), clean(input.email, 120)))
   if (seatError) return { ok: false, error: seatError }
   if (!team) return { ok: false, error: "Unknown team." }
   if (team.kyc !== "unregistered") return { ok: false, error: "This team is already registered." }
@@ -54,8 +70,7 @@ export async function registerTeam(input: RegisterInput): Promise<ActionResult> 
   const email = seatEmail(team.id, team.number)
   void input.email
 
-  if (!(await consumeOtp(email, "team-register", clean(input.code, 6))))
-    return { ok: false, error: "That code is invalid or expired. Request a new one." }
+  if (!(await consumeOtp(email, "team-register", input.code))) return { ok: false, error: INVALID_CODE }
 
   const { error: credError } = await db().from("team_credentials").insert({ teamId: team.id, pinHash: await hashSecret(input.pin) })
   if (credError) return { ok: false, error: "This team is already registered." }
