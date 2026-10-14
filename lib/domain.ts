@@ -10,6 +10,11 @@ export interface TeamMember {
   name: string
   isLeader: boolean
 }
+/** What a BUY/SELL listing trades: product lots (thousands of units) or whole factories. */
+export type ListingAsset = "PRODUCT" | "FACTORY"
+export const isFactory = (x: { asset?: ListingAsset | null }) => x.asset === "FACTORY"
+export const factoryLabel = (n: number) => `${n} ${n === 1 ? "factory" : "factories"}`
+
 export type ListingStatus = "OPEN" | "NEGOTIATING" | "PENDING_SIGNATURE" | "CLOSED"
 export type KycStatus = "unregistered" | "pending" | "approved" | "rejected"
 
@@ -45,11 +50,13 @@ export interface Listing {
   id: string
   status: ListingStatus
   type: ListingType
+  /** Missing on older rows, which are always product listings. */
+  asset?: ListingAsset
   teamId: string
   title: string
   product: Product
   grade: number
-  /** Thousands of units; null for partnerships / licensing. */
+  /** Thousands of units (or number of factories); null for partnerships / licensing. */
   quantity: number | null
   unitPrice: number | null
   region: ListingRegion
@@ -92,6 +99,8 @@ export interface Contract {
   revision: number
   finalizedByAdmin?: boolean | null
   adminOverridden?: boolean | null
+  /** FACTORY means a PRODUCT_SALE of whole factories: quantity = count, unitPrice = $ per factory. */
+  asset?: ListingAsset
   clearing_fee?: number | null
   fee_waived?: boolean | null
 }

@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, type FormEvent } from "react"
-import { Info, Plus } from "lucide-react"
+import { Factory, Info, Package, Plus } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -11,9 +12,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import {
   DELIVERY_INFO,
+  FACTORY_RULES,
   GRADES,
   HOME_OFFICE,
+  MAX_FACTORIES_PER_AREA,
   OPERATING_AREAS,
+  formatUSD,
   PRICE_BOUNDS,
   PRODUCTS,
   PRODUCT_INFO,
@@ -26,7 +30,7 @@ import {
   type ListingRegion,
   type Product,
 } from "@/lib/intopia-rules"
-import type { ListingType } from "@/lib/domain"
+import { factoryLabel, type ListingAsset, type ListingType } from "@/lib/domain"
 import type { NewListingInput } from "@/lib/hub-store"
 
 const TYPE_OPTIONS: { value: ListingType; label: string }[] = [
@@ -59,20 +63,30 @@ export function PostListingDialog({ teamId, locked, onPost }: { teamId: string; 
   const [submitted, setSubmitted] = useState(false)
   const [confirmedWarnings, setConfirmedWarnings] = useState("")
 
+  const [asset, setAsset] = useState<ListingAsset>("PRODUCT")
+
   const isTrade = type === "BUY" || type === "SELL"
+  const factory = isTrade && asset === "FACTORY"
+  const productTrade = isTrade && !factory
   const homeOfficeAllowed = type === "RND"
+  const factoryCount = Number(quantity)
+  const factoryPriceK = Number(price)
 
   const errors = {
-    quantity: isTrade ? quantityError(Number(quantity)) : null,
-    price: isTrade ? priceError(Number(price)) : null,
+    quantity: factory
+      ? !Number.isInteger(factoryCount) || factoryCount < 1 || factoryCount > MAX_FACTORIES_PER_AREA
+        ? `Enter a whole number of factories, 1–${MAX_FACTORIES_PER_AREA} (max ${MAX_FACTORIES_PER_AREA} per area).`
+        : null
+      : isTrade ? quantityError(Number(quantity)) : null,
+    price: factory ? (!(factoryPriceK > 0) ? "Enter a price per factory." : null) : isTrade ? priceError(Number(price)) : null,
     title: !isTrade && title.trim().length < 4 ? "Give the opportunity a short title." : null,
     region: region === "Home Office" && !homeOfficeAllowed ? `The Home Office (${HOME_OFFICE.country}) handles ${HOME_OFFICE.allowed} — no manufacturing or sales.` : null,
     notes: notes.trim().length > 140 ? "Keep notes under 140 characters." : null,
   }
 
   const warnings = {
-    quantity: isTrade ? quantityWarning(Number(quantity)) : null,
-    price: isTrade ? priceWarning(product, grade, Number(price), type === "SELL") : null,
+    quantity: productTrade ? quantityWarning(Number(quantity)) : null,
+    price: productTrade ? priceWarning(product, grade, Number(price), type === "SELL") : null,
   }
   const warningKey = [warnings.quantity, warnings.price].filter(Boolean).join("|")
   const confirming = warningKey !== "" && confirmedWarnings === warningKey
@@ -95,18 +109,34 @@ export function PostListingDialog({ teamId, locked, onPost }: { teamId: string; 
       setConfirmedWarnings(warningKey)
       return
     }
-    onPost({
-      type,
-      teamId,
-      product,
-      grade,
-      title: isTrade ? `Product ${product} · Grade ${grade}` : title.trim(),
-      quantity: isTrade ? Number(quantity) : null,
-      unitPrice: isTrade ? Number(price) : null,
-      region,
-      delivery: isTrade ? delivery : null,
-      notes: notes.trim() || (isTrade ? DELIVERY_INFO[delivery].eta : "Open to proposals"),
-    })
+    onPost(
+      factory
+        ? {
+            type,
+            asset: "FACTORY",
+            teamId,
+            product,
+            grade: 0,
+            title: `Product ${product} ${factoryCount === 1 ? "factory" : "factories"}`,
+            quantity: factoryCount,
+            unitPrice: Math.round(factoryPriceK * 1000),
+            region,
+            delivery: null,
+            notes: notes.trim() || `${factoryLabel(factoryCount)} in ${region}`,
+          }
+        : {
+            type,
+            teamId,
+            product,
+            grade,
+            title: isTrade ? `Product ${product} · Grade ${grade}` : title.trim(),
+            quantity: isTrade ? Number(quantity) : null,
+            unitPrice: isTrade ? Number(price) : null,
+            region,
+            delivery: isTrade ? delivery : null,
+            notes: notes.trim() || (isTrade ? DELIVERY_INFO[delivery].eta : "Open to proposals"),
+          },
+    )
     toast.success("Listing posted to the Live Marketplace")
     reset()
     setOpen(false)
@@ -140,6 +170,36 @@ export function PostListingDialog({ teamId, locked, onPost }: { teamId: string; 
               </Select>
             </div>
 
+            {isTrade && (
+              <fieldset className="col-span-2 flex flex-col gap-2">
+                <legend className="mb-2 text-sm font-medium">What are you trading?</legend>
+                <div className="grid grid-cols-2 gap-2" role="radiogroup">
+                  {([
+                    ["PRODUCT", "Products", "Lots of finished units", Package],
+                    ["FACTORY", "Factories", "Whole X or Y plants", Factory],
+                  ] as const).map(([value, label, hint, Icon]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      role="radio"
+                      aria-checked={asset === value}
+                      onClick={() => { setAsset(value); setQuantity(""); setPrice(""); setConfirmedWarnings("") }}
+                      className={cn(
+                        "flex items-start gap-2.5 rounded-lg border p-3 text-left transition-colors",
+                        asset === value ? "border-primary bg-primary/10" : "border-border hover:bg-secondary/60",
+                      )}
+                    >
+                      <Icon className={cn("mt-0.5 size-4 shrink-0", asset === value ? "text-primary" : "text-muted-foreground")} aria-hidden />
+                      <span className="flex flex-col">
+                        <span className="text-sm font-medium">{label}</span>
+                        <span className="text-xs text-muted-foreground">{hint}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+            )}
+
             {!isTrade && (
               <div className="col-span-2 flex flex-col gap-2">
                 <Label htmlFor="pl-title">Title</Label>
@@ -157,17 +217,39 @@ export function PostListingDialog({ teamId, locked, onPost }: { teamId: string; 
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex flex-col gap-2">
-              <Label>Grade</Label>
-              <Select value={String(grade)} onValueChange={(v) => setGrade(Number(v))}>
-                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {GRADES.map((g) => <SelectItem key={g} value={String(g)}>Grade {g}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+            {!factory && (
+              <div className="flex flex-col gap-2">
+                <Label>Grade</Label>
+                <Select value={String(grade)} onValueChange={(v) => setGrade(Number(v))}>
+                  <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {GRADES.map((g) => <SelectItem key={g} value={String(g)}>Grade {g}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
-            {isTrade && (
+            {factory && (
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="pl-factories">Number of factories</Label>
+                <Input id="pl-factories" type="number" inputMode="numeric" min={1} max={MAX_FACTORIES_PER_AREA} step={1} value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="1" />
+                <FieldError>{err("quantity")}</FieldError>
+              </div>
+            )}
+            {factory && (
+              <div className="col-span-2 flex flex-col gap-2">
+                <Label htmlFor="pl-factory-price">Price per factory ($K)</Label>
+                <Input id="pl-factory-price" type="number" inputMode="decimal" min={1} value={price} onChange={(e) => setPrice(e.target.value)} placeholder="1500" />
+                <FieldError>{err("price")}</FieldError>
+                {factoryCount > 0 && factoryPriceK > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Total <span className="font-mono text-foreground">{formatUSD(factoryCount * factoryPriceK * 1000)}</span> for {factoryLabel(factoryCount)}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {productTrade && (
               <>
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="pl-qty">Quantity (thousand units)</Label>
@@ -197,7 +279,7 @@ export function PostListingDialog({ teamId, locked, onPost }: { teamId: string; 
               </Select>
               <FieldError>{err("region")}</FieldError>
             </div>
-            {isTrade && (
+            {productTrade && (
               <div className="flex flex-col gap-2">
                 <Label>Delivery</Label>
                 <Select value={delivery} onValueChange={(v) => setDelivery(v as DeliveryMode)}>
@@ -216,7 +298,17 @@ export function PostListingDialog({ teamId, locked, onPost }: { teamId: string; 
             </div>
           </div>
 
-          {isTrade && (
+          {factory && (
+            <p className="flex gap-2 rounded-lg bg-secondary/60 p-3 text-xs leading-relaxed text-muted-foreground">
+              <Info className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden />
+              <span>
+                A team can run at most {MAX_FACTORIES_PER_AREA} factories per area. A new {product} factory takes {FACTORY_RULES[product].build} to build ({FACTORY_RULES[product].note.toLowerCase()}).
+                {" "}The deal is recorded in the hub; enter the transfer on your official INTOPIA decision sheet.
+              </span>
+            </p>
+          )}
+
+          {productTrade && (
             <p className="flex gap-2 rounded-lg bg-secondary/60 p-3 text-xs leading-relaxed text-muted-foreground">
               <Info className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden />
               <span>

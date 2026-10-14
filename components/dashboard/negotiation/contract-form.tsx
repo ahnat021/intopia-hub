@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, type FormEvent } from "react"
-import { AlertTriangle, FileSignature, Landmark } from "lucide-react"
+import { AlertTriangle, Factory, FileSignature, Landmark } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,6 +12,7 @@ import {
   DELIVERY_INFO,
   GRADES,
   INVENTORY_SOURCES,
+  MAX_FACTORIES_PER_AREA,
   OPERATING_AREAS,
   PRODUCTS,
   PRODUCT_INFO,
@@ -28,7 +29,7 @@ import {
   type Product,
   type Region,
 } from "@/lib/intopia-rules"
-import type { Contract, ContractKind, Listing, Team } from "@/lib/domain"
+import { factoryLabel, isFactory, type Contract, type ContractKind, type Listing, type Team } from "@/lib/domain"
 import type { ContractDraft } from "@/lib/hub-store"
 
 const KIND_OPTIONS: { value: ContractKind; label: string }[] = [
@@ -75,8 +76,13 @@ export function ContractForm({ listing, threadId, viewer, counterparty, locked, 
   const [providerId, setProviderId] = useState(() => initial?.providerId ?? defaultProvider(listing, viewer.id, counterparty.id))
   const [product, setProduct] = useState<Product>(initial?.product ?? listing.product)
   const [grade, setGrade] = useState(initial?.grade ?? listing.grade)
+  const factoryListing = isFactory(listing)
+  // Factory prices are entered in $K per factory; product prices in $ per unit.
+  const priceScale = factoryListing ? 1000 : 1
   const [quantity, setQuantity] = useState(initial?.quantity ? String(initial.quantity) : listing.quantity ? String(listing.quantity) : "")
-  const [price, setPrice] = useState(initial?.unitPrice ? String(initial.unitPrice) : listing.unitPrice ? String(listing.unitPrice) : "")
+  const [price, setPrice] = useState(
+    initial?.unitPrice ? String(initial.unitPrice / priceScale) : listing.unitPrice ? String(listing.unitPrice / priceScale) : "",
+  )
   const [delivery, setDelivery] = useState<DeliveryMode>(initial?.delivery ?? listing.delivery ?? "SURFACE")
   const [region, setRegion] = useState<Region>(initial?.region ?? (listing.region === "Home Office" ? (counterparty.region ?? viewer.region ?? "North America") : listing.region))
   const [source, setSource] = useState<InventorySource>("BEGINNING")
@@ -90,16 +96,22 @@ export function ContractForm({ listing, threadId, viewer, counterparty, locked, 
   const [confirmedWarnings, setConfirmedWarnings] = useState("")
 
   const provider = providerId === viewer.id ? viewer : counterparty
+  const factorySale = factoryListing && kind === "PRODUCT_SALE"
+  const productSale = !factoryListing && kind === "PRODUCT_SALE"
   const qty = Number(quantity)
-  const unitPrice = Number(price)
+  const unitPrice = Number(price) * (factorySale ? 1000 : 1)
   const loanCapK = maxIntercompanyLoan(provider.equity ?? 0)
   const termValues = { cash: Number(terms.cash), ar1: Number(terms.ar1), ar2: Number(terms.ar2) }
   const termSum = termValues.cash + termValues.ar1 + termValues.ar2
 
   const errors: Record<string, string | null> = {
-    quantity: kind === "PRODUCT_SALE" ? quantityError(qty) : null,
-    price: kind === "PRODUCT_SALE" ? priceError(unitPrice) : null,
-    shipment: kind === "PRODUCT_SALE" ? shipmentError(source, delivery) : null,
+    quantity: factorySale
+      ? !Number.isInteger(qty) || qty < 1 || qty > MAX_FACTORIES_PER_AREA
+        ? `Enter a whole number of factories, 1–${MAX_FACTORIES_PER_AREA}.`
+        : null
+      : productSale ? quantityError(qty) : null,
+    price: factorySale ? (!(unitPrice > 0) ? "Enter a price per factory." : null) : productSale ? priceError(unitPrice) : null,
+    shipment: productSale ? shipmentError(source, delivery) : null,
     fee: kind === "PATENT_LICENSE" && !(Number(fee) > 0 && Number(fee) <= 5000) ? "License fee must be between $1K and $5,000K." : null,
     principal:
       kind === "B2B_LOAN"
@@ -119,14 +131,15 @@ export function ContractForm({ listing, threadId, viewer, counterparty, locked, 
   }
   const show = (key: string) => (submitted ? errors[key] : null)
   const warnings = {
-    quantity: kind === "PRODUCT_SALE" ? quantityWarning(qty) : null,
-    price: kind === "PRODUCT_SALE" ? priceWarning(product, grade, unitPrice) : null,
+    quantity: productSale ? quantityWarning(qty) : null,
+    price: productSale ? priceWarning(product, grade, unitPrice) : null,
   }
   const warningKey = [warnings.quantity, warnings.price].filter(Boolean).join("|")
   const confirming = warningKey !== "" && confirmedWarnings === warningKey
 
-  const totalValue =
-    kind === "PRODUCT_SALE" ? (Number.isFinite(qty * unitPrice) ? qty * 1000 * unitPrice : 0) : kind === "PATENT_LICENSE" ? Number(fee) * 1000 : Number(principal) * 1000
+  const totalValue = factorySale
+    ? Number.isFinite(qty * unitPrice) ? qty * unitPrice : 0
+    : kind === "PRODUCT_SALE" ? (Number.isFinite(qty * unitPrice) ? qty * 1000 * unitPrice : 0) : kind === "PATENT_LICENSE" ? Number(fee) * 1000 : Number(principal) * 1000
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
@@ -148,7 +161,7 @@ export function ContractForm({ listing, threadId, viewer, counterparty, locked, 
       quantity: kind === "PRODUCT_SALE" ? qty : 0,
       unitPrice: kind === "PRODUCT_SALE" ? unitPrice : 0,
       totalValue,
-      delivery: kind === "PRODUCT_SALE" ? delivery : null,
+      delivery: productSale ? delivery : null,
       region,
       interestRate: kind === "B2B_LOAN" ? Number(rate) : 0,
       cashPct: termValues.cash,
@@ -174,7 +187,9 @@ export function ContractForm({ listing, threadId, viewer, counterparty, locked, 
           <Select value={kind} onValueChange={(v) => setKind(v as ContractKind)}>
             <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
             <SelectContent>
-              {KIND_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+              {KIND_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>{o.value === "PRODUCT_SALE" && factoryListing ? "Factory Sale" : o.label}</SelectItem>
+              ))}
               <SelectItem value="CENTRAL_BANK" disabled>Central Bank loan / bond — disabled</SelectItem>
             </SelectContent>
           </Select>
@@ -199,18 +214,45 @@ export function ContractForm({ listing, threadId, viewer, counterparty, locked, 
                 </SelectContent>
               </Select>
             </Field>
-            <Field label="Grade">
-              <Select value={String(grade)} onValueChange={(v) => setGrade(Number(v))}>
-                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {GRADES.map((g) => <SelectItem key={g} value={String(g)}>Grade {g}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </Field>
+            {!factorySale && (
+              <Field label="Grade">
+                <Select value={String(grade)} onValueChange={(v) => setGrade(Number(v))}>
+                  <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {GRADES.map((g) => <SelectItem key={g} value={String(g)}>Grade {g}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </Field>
+            )}
+            {factorySale && (
+              <Field label="Factory location">
+                <Select value={region} onValueChange={(v) => setRegion(v as Region)}>
+                  <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {OPERATING_AREAS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </Field>
+            )}
           </>
         )}
 
-        {kind === "PRODUCT_SALE" && (
+        {factorySale && (
+          <>
+            <Field label={`Number of factories (max ${MAX_FACTORIES_PER_AREA})`} htmlFor="cf-factories" error={show("quantity")}>
+              <Input id="cf-factories" type="number" inputMode="numeric" min={1} max={MAX_FACTORIES_PER_AREA} step={1} value={quantity} onChange={(e) => setQuantity(e.target.value)} />
+            </Field>
+            <Field label="Price per factory ($K)" htmlFor="cf-factory-price" error={show("price")}>
+              <Input id="cf-factory-price" type="number" inputMode="decimal" min={1} value={price} onChange={(e) => setPrice(e.target.value)} />
+            </Field>
+            <p className="col-span-2 flex gap-2 text-xs leading-relaxed text-muted-foreground">
+              <Factory className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden />
+              The seller transfers {factoryLabel(qty > 0 ? qty : 1)} in {region}. Each team may hold at most {MAX_FACTORIES_PER_AREA} per area.
+            </p>
+          </>
+        )}
+
+        {productSale && (
           <>
             <Field label="Quantity (thousand units)" htmlFor="cf-qty" error={show("quantity")}>
               <Input id="cf-qty" type="number" inputMode="decimal" step={0.5} value={quantity} onChange={(e) => setQuantity(e.target.value)} />

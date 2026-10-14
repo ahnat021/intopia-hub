@@ -4,10 +4,13 @@ import { db, isSupabaseConfigured } from "@/lib/supabaseClient"
 import { getSession } from "@/lib/server/session"
 import { newId, posterAlias } from "@/lib/server/security"
 import { clearingFee, isValidPeriodSetting, promoActive } from "@/lib/constants"
-import { PRODUCT_INFO, formatCompactUSD, formatUnits, productCode } from "@/lib/intopia-rules"
+import { MAX_FACTORIES_PER_AREA, PRODUCT_INFO, formatCompactUSD, formatUnits, productCode } from "@/lib/intopia-rules"
+import { insertWithAsset } from "@/lib/server/schema-upgrades"
 import {
   DEFAULT_SETTINGS,
   FINE_REASONS,
+  factoryLabel,
+  isFactory,
   MR_ITEMS,
   RATING_TAGS,
   isProfessor,
@@ -298,8 +301,15 @@ export async function postListing(input: NewListingInput): Promise<ActionResult<
   if (!LISTING_TYPES.includes(input.type) || !["X", "Y"].includes(input.product)) return fail("Invalid listing.")
   if (!Number.isInteger(input.grade) || input.grade < 0 || input.grade > 20) return fail("Invalid grade.")
   const isTrade = input.type === "BUY" || input.type === "SELL"
+  const factory = isTrade && input.asset === "FACTORY"
+  if (factory) {
+    if (!Number.isInteger(input.quantity) || input.quantity! < 1 || input.quantity! > MAX_FACTORIES_PER_AREA)
+      return fail(`List between 1 and ${MAX_FACTORIES_PER_AREA} factories.`)
+    if (!finite(input.unitPrice, 1, 1e12)) return fail("Enter a price per factory.")
+    if (input.region === "Home Office") return fail("Factories must be in an operating area.")
+  }
   // Only reject impossible values; unusual-but-valid figures are warned about in the UI instead.
-  if (isTrade && (!finite(input.quantity, 0.001, 1e9) || !finite(input.unitPrice, 0.01, 1e9))) return fail("Quantity and price must be greater than zero.")
+  else if (isTrade && (!finite(input.quantity, 0.001, 1e9) || !finite(input.unitPrice, 0.01, 1e9))) return fail("Quantity and price must be greater than zero.")
   const listing: Listing = {
     id: newId("L"),
     status: "OPEN",
@@ -307,16 +317,17 @@ export async function postListing(input: NewListingInput): Promise<ActionResult<
     teamId: team.id,
     title: String(input.title).slice(0, 120),
     product: input.product,
-    grade: input.grade,
+    grade: factory ? 0 : input.grade,
     quantity: isTrade ? input.quantity : null,
     unitPrice: isTrade ? input.unitPrice : null,
     region: input.region,
-    delivery: isTrade ? input.delivery : null,
+    delivery: isTrade && !factory ? input.delivery : null,
     notes: String(input.notes ?? "").slice(0, 500),
     createdAt: Date.now(),
+    ...(factory ? { asset: "FACTORY" as const } : {}),
   }
-  const { error } = await db().from("listings").insert(listing)
-  if (error) return fail("Could not post the listing.")
+  const { error } = factory ? await insertWithAsset("listings", listing) : await db().from("listings").insert(listing)
+  if (error) return fail(factory ? `Could not post the factory listing. ${error.message}` : "Could not post the listing.")
   const kind: ActivityKind = input.type === "PARTNERSHIP" || input.type === "OTHER" ? "partnership" : input.type === "RND" ? "license" : "listing"
   await logActivity(kind, listingPostMessage(listing.title), team.id)
   return ok(listing)
@@ -353,7 +364,12 @@ export async function draftContract(draft: ContractDraft, parentId?: string): Pr
     return fail("Payment terms must total 100%.")
   if (!finite(draft.totalValue, 0.01) || !finite(draft.quantity, 0) || !finite(draft.unitPrice, 0) || !finite(draft.interestRate, 0, 100))
     return fail("Enter valid contract values.")
-  const totalValue = draft.kind === "PRODUCT_SALE" ? Math.round(draft.quantity * 1000 * draft.unitPrice) : draft.totalValue
+  const { data: listingRow } = await db().from("listings").select("*").eq("id", thread.listingId).maybeSingle()
+  const factory = draft.kind === "PRODUCT_SALE" && listingRow?.asset === "FACTORY"
+  if (factory && (!Number.isInteger(draft.quantity) || draft.quantity < 1 || draft.quantity > MAX_FACTORIES_PER_AREA || !finite(draft.unitPrice, 1)))
+    return fail(`A factory sale needs 1–${MAX_FACTORIES_PER_AREA} factories and a price per factory.`)
+  const totalValue =
+    draft.kind !== "PRODUCT_SALE" ? draft.totalValue : factory ? Math.round(draft.quantity * draft.unitPrice) : Math.round(draft.quantity * 1000 * draft.unitPrice)
 
   let revision = 1
   if (parentId) {
@@ -374,11 +390,14 @@ export async function draftContract(draft: ContractDraft, parentId?: string): Pr
     parentId: parentId ?? null,
     revision,
   }
+  delete contract.asset
+  if (factory) Object.assign(contract, { asset: "FACTORY", grade: 0, delivery: null })
+  const insertContract = (row: Contract) => (factory ? insertWithAsset("contracts", row) : db().from("contracts").insert(row))
   const promoCode = (team as { promo_code_used?: string | null }).promo_code_used
   const withFee: Contract = { ...contract, clearing_fee: clearingFee(totalValue, promoCode), fee_waived: promoActive(promoCode) }
-  let { error } = await db().from("contracts").insert(withFee)
+  let { error } = await insertContract(withFee)
   // Fall back if migration 002 hasn't added the fee columns yet.
-  if (error && /clearing_fee|fee_waived/.test(error.message)) ({ error } = await db().from("contracts").insert(contract))
+  if (error && /clearing_fee|fee_waived/.test(error.message)) ({ error } = await insertContract(contract))
   else if (!error) Object.assign(contract, withFee)
   if (error) return fail("Could not submit the contract.")
   await postMessage(thread.id, team.id, parentId ? `Counter-offer R${revision} submitted, replacing R${revision - 1}.` : `Proposal R${revision} submitted for signature.`, {
@@ -403,7 +422,9 @@ async function applyFinalize(contract: Contract, byAdmin: boolean) {
   const other = contract.providerId === contract.initiatorId ? contract.counterpartyId : contract.initiatorId
   const [a, b] = [label(names, contract.initiatorId), label(names, contract.counterpartyId)]
   const message =
-    contract.kind === "PRODUCT_SALE"
+    contract.kind === "PRODUCT_SALE" && isFactory(contract)
+      ? `${label(names, contract.providerId)} sold ${factoryLabel(contract.quantity)} (Product ${contract.product}, ${contract.region}) to ${label(names, other)}`
+      : contract.kind === "PRODUCT_SALE"
       ? `${a} & ${b} closed a ${formatUnits(contract.quantity)}-unit ${PRODUCT_INFO[contract.product].name} deal`
       : contract.kind === "PATENT_LICENSE"
         ? `${label(names, contract.providerId)} licensed ${productCode(contract.product, contract.grade)} technology to ${label(names, other)}`
