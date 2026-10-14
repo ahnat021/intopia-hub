@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next"
 import Image from "next/image"
 import { Geist, Geist_Mono } from "next/font/google"
-import { DonationGate } from "@/components/donation-gate"
 import { Providers } from "@/components/providers"
 import "./globals.css"
 
@@ -31,7 +30,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           <Image src="/images/globe-network.png" alt="" fill priority sizes="100vw" className="hub-backdrop object-cover object-top" />
         </div>
         <Providers>
-          <DonationGate>{children}</DonationGate>
+          {children}
         </Providers>
       </body>
     </html>

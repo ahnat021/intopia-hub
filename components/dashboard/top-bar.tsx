@@ -2,6 +2,7 @@
 
 import { activePeriodId } from "@/lib/constants"
 import type { ReactNode } from "react"
+import Link from "next/link"
 import { Clock, Crown, Lock, LogOut, Repeat } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -71,6 +72,14 @@ export function TopBar({ team, onSignOut, children }: { team: Team; onSignOut: (
 
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {children}
+          <nav aria-label="Legal" className="flex items-center gap-3 px-1 text-xs font-medium text-muted-foreground">
+            <Link href="/terms" className="hover:text-foreground hover:underline">
+              Terms
+            </Link>
+            <Link href="/privacy" className="hover:text-foreground hover:underline">
+              Privacy
+            </Link>
+          </nav>
           <Button variant="outline" size="sm" onClick={toggleLocale} aria-label="Toggle language" className="font-mono text-xs">
             <span className={locale === "en" ? "text-primary" : "text-muted-foreground"}>EN</span>
             <span aria-hidden className="text-muted-foreground">|</span>

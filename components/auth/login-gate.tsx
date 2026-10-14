@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { TeamCombobox } from "@/components/team-combobox"
 import { BrandMark } from "@/components/brand-mark"
+import { BenefitsSection } from "@/components/auth/benefits-section"
 import { useAuth } from "@/lib/auth-context"
 import { useHub } from "@/lib/hub-store"
 import { useI18n } from "@/lib/i18n"
@@ -301,9 +302,18 @@ export function LoginGate() {
   const pendingCount = teams.filter((x) => x.kyc === "pending").length || kycQueue.length
 
   return (
-    <main className="relative flex min-h-dvh items-center justify-center overflow-hidden px-4 py-10">
+    <main className="relative flex min-h-dvh flex-col items-center justify-center gap-10 overflow-hidden px-4 pt-20 pb-14">
       <Image src="/images/globe-network.png" alt="" fill priority sizes="100vw" className="pointer-events-none object-cover opacity-20" />
       <div aria-hidden className="pointer-events-none absolute inset-0 bg-background/75" />
+
+      <nav aria-label="Legal" className="absolute bottom-3 left-4 z-10 flex sm:top-4 sm:bottom-auto items-center gap-4 text-xs font-medium text-muted-foreground">
+        <Link href="/terms" className="hover:text-foreground hover:underline">
+          Terms of Service
+        </Link>
+        <Link href="/privacy" className="hover:text-foreground hover:underline">
+          Privacy Policy
+        </Link>
+      </nav>
 
       <nav aria-label="Preferences" className="absolute top-4 right-4 z-10 flex items-center gap-2">
         <Button variant="outline" size="sm" onClick={toggle} aria-label={t("lang.switch")}>
@@ -434,6 +444,8 @@ export function LoginGate() {
           )}
         </section>
       </div>
+
+      <BenefitsSection />
     </main>
   )
 }
