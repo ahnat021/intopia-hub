@@ -5,6 +5,7 @@ import { getSession } from "@/lib/server/session"
 import { newId } from "@/lib/server/security"
 import { PROMO_CODE, PROMO_EXPIRES_AT } from "@/lib/constants"
 import type { ActionResult } from "@/lib/hub-types"
+import { isProfessor, professorName } from "@/lib/domain"
 
 const fail = (error: string): ActionResult<never> => ({ ok: false, error })
 const ok = <T,>(data: T): ActionResult<T> => ({ ok: true, data })
@@ -35,16 +36,18 @@ export async function saveTeamProfile(input: TeamProfileInput): Promise<ActionRe
   const members = (input.members ?? [])
     .map((m) => ({ name: String(m.name ?? "").trim().slice(0, 80), isLeader: Boolean(m.isLeader) }))
     .filter((m) => m.name.length > 0)
-  if (members.length < 1 || members.length > 8) return fail("Add between 1 and 8 team members.")
+  const solo = isProfessor(teamId)
+  if (!solo && (members.length < 1 || members.length > 8)) return fail("Add between 1 and 8 team members.")
   const leaders = members.filter((m) => m.isLeader)
-  if (leaders.length !== 1) return fail("Select exactly one Team Leader.")
+  if (!solo && leaders.length !== 1) return fail("Select exactly one Team Leader.")
+  const leaderName = leaders[0]?.name ?? (solo ? professorName(teamId) : "")
   const whatsapp = String(input.whatsapp ?? "").replace(/[^\d+]/g, "").slice(0, 20)
   if (whatsapp.replace(/\D/g, "").length < 7) return fail("Enter a valid WhatsApp number.")
   const contactEmail = String(input.contactEmail ?? "").trim().slice(0, 120)
   if (contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) return fail("Secondary contact email looks invalid.")
   const { error } = await db()
     .from("teams")
-    .update({ team_members: members, team_leader_name: leaders[0].name, whatsapp, contact_email: contactEmail || null })
+    .update({ team_members: members, team_leader_name: leaderName, whatsapp, contact_email: contactEmail || null })
     .eq("id", teamId)
   return error ? fail("Could not save the team profile. Has migration 002 been run?") : ok(undefined)
 }

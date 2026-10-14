@@ -9,10 +9,9 @@ import {
   DEFAULT_SETTINGS,
   FINE_REASONS,
   MR_ITEMS,
-  PROFESSOR_NAME,
-  PROFESSOR_TEAM_ID,
   RATING_TAGS,
   isProfessor,
+  professorName,
   threadIdFor,
   type ActivityKind,
   type AiReview,
@@ -104,14 +103,14 @@ async function requireAdmin(): Promise<ActionResult<true>> {
 }
 
 /** Admins, or an approved Professor Tim. Professor powers are a strict subset of admin powers. */
-async function requireAdminOrProfessor(): Promise<ActionResult<{ actor: "admin" | "professor" }>> {
+async function requireAdminOrProfessor(): Promise<ActionResult<{ actor: "admin" | "professor"; profId: string; name: string }>> {
   if (!isSupabaseConfigured()) return fail("The hub database is not connected yet.")
   const session = await getSession()
-  if (session?.role === "admin") return ok({ actor: "admin" })
-  if (session?.role !== "team" || !isProfessor(session.teamId)) return fail("Only the hub administrator or Professor Tim can do this.")
+  if (session?.role === "admin") return ok({ actor: "admin", profId: "admin", name: "The Hub Administrator" })
+  if (session?.role !== "team" || !isProfessor(session.teamId)) return fail("Only the hub administrator or a professor can do this.")
   const { data: team } = await db().from("teams").select("kyc, banned").eq("id", session.teamId).maybeSingle()
   if (!team || team.banned || team.kyc !== "approved") return fail("Professor access is awaiting approval.")
-  return ok({ actor: "professor" })
+  return ok({ actor: "professor", profId: session.teamId, name: professorName(session.teamId) })
 }
 
 async function threadForMember(threadId: string, teamId: string) {
@@ -679,7 +678,7 @@ export async function issueFine(teamId: string, amountK: number, reason: FineRea
   if (!team) return fail("Team not found.")
   const { error } = await db().from("fines").insert({ id: newId("F"), teamId, amountK: Math.round(amountK), reason })
   if (error) return fail("Could not record the penalty.")
-  const by = auth.data.actor === "professor" ? `${PROFESSOR_NAME} issued an administrative penalty` : "Regulatory fine"
+  const by = auth.data.actor === "professor" ? `${auth.data.name} issued an administrative penalty` : "Regulatory fine"
   await logActivity("fine", `${by}: ${team.name} fined ${formatCompactUSD(Math.round(amountK) * 1000)} for ${reason}`, teamId)
   return ok(undefined)
 }
@@ -692,7 +691,7 @@ export async function setCalendar(period: string, deadlineAt: number | null): Pr
   if (deadlineAt !== null && !finite(deadlineAt, 0, 1e14)) return fail("Invalid deadline.")
   const { error } = await db().from("hub_settings").update({ period, deadlineAt }).eq("id", 1)
   if (error) return fail("Could not update the calendar.")
-  const who = auth.data.actor === "professor" ? PROFESSOR_NAME : "The Hub Administrator"
+  const who = auth.data.name
   await logActivity("announcement", `${who} set the game calendar to ${period}${deadlineAt ? `, deadline ${new Date(deadlineAt).toLocaleString("en-CA")}` : ""}`)
   return ok(undefined)
 }
@@ -723,7 +722,7 @@ export async function postAnnouncement(tag: AnnouncementTag, title: string, body
   if (!auth.ok) return auth
   if (!["Official", "Reminder", "Community"].includes(tag) || title.trim().length < 3) return fail("Add a title.")
   const row = { id: newId("N"), tag, title: title.trim().slice(0, 120), body: body.trim().slice(0, 600) }
-  const author = auth.data.actor === "professor" ? PROFESSOR_TEAM_ID : "admin"
+  const author = auth.data.profId
   const { error } = await db().from("announcements").insert({ ...row, author })
   // Fallback for databases that haven't added the "author" column yet.
   if (error) {
@@ -738,7 +737,7 @@ export async function deleteAnnouncement(id: string): Promise<ActionResult> {
   const auth = await requireAdminOrProfessor()
   if (!auth.ok) return auth
   let query = db().from("announcements").delete().eq("id", id)
-  if (auth.data.actor === "professor") query = query.eq("author", PROFESSOR_TEAM_ID)
+  if (auth.data.actor === "professor") query = query.eq("author", auth.data.profId)
   const { error } = await query
   return error ? fail("Could not remove the announcement.") : ok(undefined)
 }

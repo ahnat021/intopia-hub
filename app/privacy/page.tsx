@@ -78,13 +78,101 @@ const sections: LegalSection[] = [
   },
 ]
 
+const sectionsFr: LegalSection[] = [
+  {
+    heading: "Collecte des données",
+    body: (
+      <>
+        <p>Afin de faire fonctionner le marché et les fonctions de communication de la Plateforme, nous recueillons les renseignements suivants :</p>
+        <ul>
+          <li>
+            <strong>Données de compte :</strong> noms et adresses courriel officielles de la simulation (<code>ottXX@intopsim.com</code>).
+          </li>
+          <li>
+            <strong>Coordonnées :</strong> numéros WhatsApp ou autres identifiants de communication fournis.
+          </li>
+          <li>
+            <strong>Données d&apos;utilisation :</strong> transcriptions de clavardage, pièces jointes téléversées et annonces de transactions.
+          </li>
+        </ul>
+      </>
+    ),
+  },
+  {
+    heading: "Confidentialité stricte et séparation pédagogique",
+    body: (
+      <>
+        <p>Intopia Hub est exploitée de façon entièrement indépendante de l&apos;administration et du corps professoral de l&apos;Université d&apos;Ottawa.</p>
+        <ul>
+          <li>Nous garantissons une stricte confidentialité quant à vos activités sur la plateforme.</li>
+          <li>
+            Aucune négociation, aucun historique de clavardage, aucune ébauche de contrat ni aucune donnée personnelle ne sera volontairement divulgué, remis ou
+            transmis au professeur du cours, à l&apos;administration universitaire ou aux cohortes d&apos;étudiants concurrentes.
+          </li>
+        </ul>
+      </>
+    ),
+  },
+  {
+    heading: "Communication à des tiers",
+    body: (
+      <p>
+        Nous <strong>ne vendons, ne louons et ne monnayons pas</strong> vos données personnelles. Les données sont traitées exclusivement au sein de
+        l&apos;infrastructure de base de données sécurisée de l&apos;application (Supabase), uniquement pour permettre le clavardage en temps réel,
+        l&apos;authentification et les fonctions du marché.
+      </p>
+    ),
+  },
+  {
+    heading: "Archivage et conservation des données",
+    body: (
+      <>
+        <p>
+          À la fin du trimestre universitaire concerné, toutes les données personnelles actives permettant d&apos;identifier directement les utilisateurs (y
+          compris les noms, numéros de contact et identifiants de profil) seront systématiquement supprimées de l&apos;environnement de production.
+        </p>
+        <p>
+          Vous reconnaissez toutefois expressément et accordez à l&apos;Administrateur le droit de migrer et de conserver de façon permanente des statistiques
+          d&apos;utilisation anonymisées, des données structurelles et des historiques de clavardage dans une base de données d&apos;archives privée et
+          sécurisée. Cette conservation sert exclusivement au développement du portfolio personnel de l&apos;Administrateur, à la préservation historique et à
+          la référence pour de futures architectures logicielles, et demeure strictement inaccessible au public.
+        </p>
+      </>
+    ),
+  },
+  {
+    heading: "Droit applicable et compétence",
+    body: (
+      <p>
+        La présente politique de confidentialité, ainsi que tout litige découlant de nos pratiques en matière de données, est régie et interprétée
+        exclusivement selon les lois de la <strong>province de l&apos;Ontario</strong> et les lois fédérales du Canada qui s&apos;y appliquent.
+      </p>
+    ),
+  },
+]
+
 export default function PrivacyPage() {
   return (
     <LegalPage
-      title="Privacy Policy"
-      effective="October 14, 2026"
-      intro={<>By accessing or utilizing the Intopia Hub platform, you consent to the data collection and retention practices outlined in this Privacy Policy.</>}
-      sections={sections}
+      content={{
+        en: {
+          title: "Privacy Policy",
+          effective: "October 14, 2026",
+          intro: <>By accessing or utilizing the Intopia Hub platform, you consent to the data collection and retention practices outlined in this Privacy Policy.</>,
+          sections,
+        },
+        fr: {
+          title: "Politique de confidentialité",
+          effective: "14 octobre 2026",
+          intro: (
+            <>
+              En accédant à la plateforme Intopia Hub ou en l&apos;utilisant, vous consentez aux pratiques de collecte et de conservation des données décrites
+              dans la présente politique de confidentialité.
+            </>
+          ),
+          sections: sectionsFr,
+        },
+      }}
     />
   )
 }

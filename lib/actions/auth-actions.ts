@@ -13,7 +13,7 @@ import {
   reportIntrusion,
   verifySecret,
 } from "@/lib/server/security"
-import { officialEmail } from "@/lib/constants"
+import { seatEmail } from "@/lib/domain"
 import type { ActionResult } from "@/lib/hub-types"
 
 const PIN_RE = /^\d{4}$/
@@ -46,7 +46,7 @@ export async function registerTeam(input: RegisterInput): Promise<ActionResult> 
   if (team.kyc !== "unregistered") return { ok: false, error: "This team is already registered." }
   if (await loginLockedUntil(team.id))
     return { ok: false, error: "Login is temporarily locked after an unauthorized-attempt report. Try again in 10 minutes." }
-  const email = officialEmail(team.number)
+  const email = seatEmail(team.id, team.number)
   void input.email
 
   if (!(await consumeOtp(email, "team-register", clean(input.code, 6))))
@@ -76,7 +76,7 @@ export async function reportNotMe(teamId: string): Promise<ActionResult> {
   const { data: pending } = await db()
     .from("email_otps")
     .select("id")
-    .eq("email", officialEmail(team.number))
+    .eq("email", seatEmail(team.id, team.number))
     .is("verifiedAt", null)
     .gt("createdAt", Date.now() - 10 * 60 * 1000)
     .limit(1)
