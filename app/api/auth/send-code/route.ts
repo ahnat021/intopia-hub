@@ -3,6 +3,7 @@ import { db, isSupabaseConfigured } from "@/lib/supabaseClient"
 import { sendVerificationCode } from "@/lib/server/email"
 import { EMAIL_RE, issueOtp, loginLockedUntil, normalizeEmail, notMeToken, type OtpPurpose } from "@/lib/server/security"
 import { seatEmail } from "@/lib/domain"
+import { findSeat, resolveSeatId } from "@/lib/server/seats"
 
 const RESEND_COOLDOWN_MS = 60 * 1000
 const HOURLY_LIMIT = 5
@@ -36,9 +37,8 @@ async function handle(request: Request) {
   let notMeUrl: string | undefined
   if (purpose === "team-register") {
     // Team codes always go to the team's official INTOPIA inbox; any client-supplied email is ignored.
-    const teamId = typeof body?.teamId === "string" ? body.teamId.slice(0, 8) : ""
-    const { data: team, error: teamError } = await db().from("teams").select("id, number").eq("id", teamId).maybeSingle()
-    if (teamError) return dbFailure("teams lookup", teamError.message)
+    const { team, error: teamError } = await findSeat(resolveSeatId(body?.teamId, body?.email))
+    if (teamError) return dbFailure("teams lookup", teamError)
     if (!team) return NextResponse.json({ error: "Unknown team." }, { status: 404 })
     const lockedUntil = await loginLockedUntil(team.id)
     if (lockedUntil)
