@@ -139,6 +139,16 @@ export const activePeriodId = (override?: string | null, now = Date.now()) => ac
 
 export const nextScheduleEvent = activeScheduleEvent
 
+/**
+ * Epoch ms when the current schedule period ends. Uses a strict `>` so the clock
+ * rolls straight to the next period the moment one closes.
+ */
+export function periodEndAt(override?: string | null, now = Date.now()): number | null {
+  const id = forcedId(override)
+  const forced = id ? SCHEDULE.find((e) => e.id === id) : undefined
+  return forced?.at ?? SCHEDULE.find((e) => e.at > now)?.at ?? null
+}
+
 export const formatToronto = (ms: number) =>
   new Intl.DateTimeFormat("en-CA", { timeZone: "America/Toronto", weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZoneName: "short" }).format(ms)
 
