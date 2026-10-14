@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { useHub } from "@/lib/hub-store"
-import { FINE_REASONS, PROFESSOR_TEAM_ID, type AnnouncementTag, type FineReason } from "@/lib/domain"
+import { FINE_REASONS, isProfessor, type AnnouncementTag, type FineReason } from "@/lib/domain"
+import { useAuth } from "@/lib/auth-context"
 
 const TAGS: AnnouncementTag[] = ["Official", "Reminder", "Community"]
 
@@ -26,7 +27,8 @@ function AnnouncementTab() {
   const [tag, setTag] = useState<AnnouncementTag>("Official")
   const [title, setTitle] = useState("")
   const [body, setBody] = useState("")
-  const mine = hub.announcements.filter((a) => a.author === PROFESSOR_TEAM_ID)
+  const viewerId = useAuth().team?.id
+  const mine = hub.announcements.filter((a) => a.author === viewerId)
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -122,7 +124,7 @@ function CalendarTab() {
 
 function PenaltyTab() {
   const hub = useHub()
-  const targets = useMemo(() => hub.teams.filter((t) => t.id !== PROFESSOR_TEAM_ID && t.kyc === "approved"), [hub.teams])
+  const targets = useMemo(() => hub.teams.filter((t) => !isProfessor(t.id) && t.kyc === "approved"), [hub.teams])
   const [teamId, setTeamId] = useState("")
   const [amountK, setAmountK] = useState("")
   const [reason, setReason] = useState<FineReason>("Administrative Penalty")

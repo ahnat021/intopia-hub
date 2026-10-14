@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { redeemPromo, saveTeamProfile } from "@/lib/actions/clearinghouse-actions"
 import { CLEARING_FEE_LABEL, PROMO_RULE } from "@/lib/constants"
-import type { Team } from "@/lib/domain"
+import { isProfessor, type Team } from "@/lib/domain"
 
 type Step = "waiver" | "promo" | "roster"
 type Member = { name: string; isLeader: boolean }
@@ -42,6 +42,7 @@ export function OnboardingGate({ team, open, mode = "onboard", signed, onSign, o
   const [whatsapp, setWhatsapp] = useState(team.whatsapp ?? "")
   const [contactEmail, setContactEmail] = useState(team.contact_email ?? "")
   const [busy, setBusy] = useState(false)
+  const solo = isProfessor(team.id)
 
   const sign = async () => {
     setBusy(true)
@@ -61,7 +62,7 @@ export function OnboardingGate({ team, open, mode = "onboard", signed, onSign, o
 
   const saveRoster = async () => {
     setBusy(true)
-    const res = await saveTeamProfile({ members, whatsapp, contactEmail })
+    const res = await saveTeamProfile({ members: solo ? [] : members, whatsapp, contactEmail })
     setBusy(false)
     if (!res.ok) return toast.error(res.error)
     toast.success("Team profile saved.")
@@ -86,7 +87,9 @@ export function OnboardingGate({ team, open, mode = "onboard", signed, onSign, o
               ? `${team.name} must accept the hub rules before trading.`
               : step === "promo"
                 ? `Every executed trade carries a small ${CLEARING_FEE_LABEL}.`
-                : "Add 1 to 8 members and choose exactly one Team Leader. This appears in the public Cohort Logbook."}
+                : solo
+                  ? "Tip: if the French/English toggle doesn't translate a page, use Chrome's built-in Translate (right-click › Translate)."
+                  : "Add 1 to 8 members and choose exactly one Team Leader. This appears in the public Cohort Logbook."}
           </DialogDescription>
         </DialogHeader>
 
@@ -117,6 +120,11 @@ export function OnboardingGate({ team, open, mode = "onboard", signed, onSign, o
 
         {step === "roster" && (
           <div className="flex flex-col gap-4">
+            {solo ? (
+              <p className="rounded-md border border-border p-3 text-sm leading-relaxed text-muted-foreground">
+                Professor accounts don&apos;t need a team roster. Add a contact number and you&apos;re in.
+              </p>
+            ) : (
             <fieldset className="flex flex-col gap-2">
               <legend className="mb-1 text-sm font-medium">Team members ({members.length}/8) — select the leader</legend>
               {members.map((m, i) => (
@@ -149,6 +157,7 @@ export function OnboardingGate({ team, open, mode = "onboard", signed, onSign, o
                 <Plus aria-hidden /> Add Member
               </Button>
             </fieldset>
+            )}
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="og-wa">Main contact WhatsApp</Label>

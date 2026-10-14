@@ -5,7 +5,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { ArrowLeft, Ban, Crown, KeyRound, Languages, Loader2, Lock, Mail, RotateCw, ShieldAlert, ShieldCheck } from "lucide-react"
 import { reportNotMe } from "@/lib/actions/auth-actions"
-import { officialEmail, activePeriodId } from "@/lib/constants"
+import { activePeriodId } from "@/lib/constants"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -18,7 +18,7 @@ import { useAuth } from "@/lib/auth-context"
 import { useHub } from "@/lib/hub-store"
 import { useI18n } from "@/lib/i18n"
 import { OPERATING_AREAS, formatCompactUSD } from "@/lib/intopia-rules"
-import { isBankrupt, isOperator, type Region } from "@/lib/domain"
+import { isBankrupt, isOperator, seatEmail, type Region } from "@/lib/domain"
 import { cn } from "@/lib/utils"
 
 const PIN_RE = /^\d{4}$/
@@ -111,7 +111,7 @@ function SetupForm({ teamId }: { teamId: string }) {
   const [company, setCompany] = useState("")
   const [region, setRegion] = useState<Region | "">("")
   const [whatsapp, setWhatsapp] = useState("")
-  const email = officialEmail(teamById[teamId]?.number ?? 0)
+  const email = seatEmail(teamId, teamById[teamId]?.number ?? 0)
   const [pin, setPin] = useState("")
   const [confirm, setConfirm] = useState("")
   const [code, setCode] = useState("")

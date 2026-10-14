@@ -1,5 +1,5 @@
 import type { DeliveryMode, ListingRegion, Product, Region } from "./intopia-rules"
-import { MR_CATALOG } from "./constants"
+import { MR_CATALOG, officialEmail } from "./constants"
 
 export type { DeliveryMode, ListingRegion, Product, Region } from "./intopia-rules"
 
@@ -277,7 +277,22 @@ export const isOperator = (teamId: string | null | undefined) => teamId === OPER
  */
 export const PROFESSOR_TEAM_ID = "prof"
 export const PROFESSOR_NAME = "Professor Tim"
-export const isProfessor = (teamId: string | null | undefined) => teamId === PROFESSOR_TEAM_ID
+
+/**
+ * Professor seats share the same powers. A professor with an `email` receives
+ * login codes there instead of an INTOPIA simulation inbox, and is a single
+ * person, so no team roster is required.
+ */
+export const PROFESSORS: { id: string; number: number; name: string; email: string | null }[] = [
+  { id: PROFESSOR_TEAM_ID, number: 0, name: PROFESSOR_NAME, email: null },
+  { id: "prof2", number: 76, name: "Professor Milena Parent", email: "milena.parent@telfer.uottawa.ca" },
+]
+const PROFESSOR_BY_ID = new Map(PROFESSORS.map((p) => [p.id, p]))
+export const isProfessor = (teamId: string | null | undefined) => !!teamId && PROFESSOR_BY_ID.has(teamId)
+export const professorName = (teamId: string) => PROFESSOR_BY_ID.get(teamId)?.name ?? PROFESSOR_NAME
+
+/** Inbox that receives a seat's login codes. */
+export const seatEmail = (teamId: string, teamNumber: number) => PROFESSOR_BY_ID.get(teamId)?.email ?? officialEmail(teamNumber)
 
 const emptySeat = (id: string, number: number, name: string): Team => ({
   id,
@@ -303,12 +318,12 @@ export const TEAM_BY_ID: Record<string, Team> = {}
 /** Professor Tim plus the 75 seats always exist; live rows overlay registration status onto them. */
 export function fullRoster(teams: Team[]): Team[] {
   const byId = new Map(teams.map((t) => [t.id, t]))
-  const professor = byId.get(PROFESSOR_TEAM_ID) ?? emptySeat(PROFESSOR_TEAM_ID, 0, PROFESSOR_NAME)
+  const professors = PROFESSORS.map((p) => byId.get(p.id) ?? emptySeat(p.id, p.number, p.name))
   const seats = Array.from({ length: TEAM_COUNT }, (_, i) => {
     const id = teamIdFor(i + 1)
     return byId.get(id) ?? emptySeat(id, i + 1, `Team ${i + 1}`)
   })
-  return [professor, ...seats]
+  return [...professors, ...seats]
 }
 
 export function setTeamRegistry(teams: Team[]) {
@@ -316,7 +331,7 @@ export function setTeamRegistry(teams: Team[]) {
 }
 
 export function teamLabel(teamId: string) {
-  if (teamId === PROFESSOR_TEAM_ID) return PROFESSOR_NAME
+  if (isProfessor(teamId)) return professorName(teamId)
   return TEAM_BY_ID[teamId]?.name ?? (teamId.startsWith("t") ? `Team ${Number(teamId.slice(1))}` : teamId)
 }
 

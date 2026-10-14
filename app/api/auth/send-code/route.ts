@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { db, isSupabaseConfigured } from "@/lib/supabaseClient"
 import { sendVerificationCode } from "@/lib/server/email"
 import { EMAIL_RE, issueOtp, loginLockedUntil, normalizeEmail, notMeToken, type OtpPurpose } from "@/lib/server/security"
-import { officialEmail } from "@/lib/constants"
+import { seatEmail } from "@/lib/domain"
 
 const RESEND_COOLDOWN_MS = 60 * 1000
 const HOURLY_LIMIT = 5
@@ -43,7 +43,7 @@ async function handle(request: Request) {
     const lockedUntil = await loginLockedUntil(team.id)
     if (lockedUntil)
       return NextResponse.json({ error: "Login is temporarily locked after an unauthorized-attempt report. Try again in 10 minutes." }, { status: 423 })
-    email = officialEmail(team.number)
+    email = seatEmail(team.id, team.number)
     notMeUrl = `${new URL(request.url).origin}/api/auth/not-me?team=${encodeURIComponent(team.id)}&token=${notMeToken(team.id)}`
   }
   if (!EMAIL_RE.test(email) || email.length > 254) return NextResponse.json({ error: "Enter a valid email address." }, { status: 400 })
