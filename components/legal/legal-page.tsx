@@ -28,7 +28,12 @@ export function LegalPage({ title, effective, intro, sections }: { title: string
           Legal · Ontario, Canada
         </div>
         <h1 className="mt-3 text-balance text-3xl font-bold tracking-tight sm:text-4xl">{title}</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Effective date: {effective}</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Effective date: {effective} · Author &amp; Administrator: Alexander Hnatovsky ·{" "}
+          <a href="mailto:ahnat021@uottawa.ca" className="hover:text-foreground hover:underline">
+            ahnat021@uottawa.ca
+          </a>
+        </p>
 
         <div className="mt-6 rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm leading-relaxed text-pretty">{intro}</div>
 
@@ -58,10 +63,6 @@ export function LegalPage({ title, effective, intro, sections }: { title: string
           ))}
         </div>
 
-        <p className="mt-12 border-t border-border pt-6 text-xs leading-relaxed text-muted-foreground">
-          This document is provided as boilerplate for an educational simulation prototype and does not constitute legal advice. Organizations deploying
-          Intopia Hub should have it reviewed by counsel licensed in Ontario.
-        </p>
       </main>
       <SiteFooter />
     </div>

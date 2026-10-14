@@ -3,130 +3,101 @@ import { LegalPage, type LegalSection } from "@/components/legal/legal-page"
 
 export const metadata: Metadata = {
   title: "Terms of Service — Intopia Hub",
-  description: "Terms governing use of the Intopia Hub simulated B2B marketplace, governed by the laws of Ontario, Canada.",
+  description: "Terms of Service and End User License Agreement for the Intopia Hub platform, governed by the laws of Ontario, Canada.",
 }
 
 const sections: LegalSection[] = [
   {
-    heading: "Acceptance of terms",
-    body: (
-      <p>
-        These Terms of Service (the &quot;Terms&quot;) govern access to and use of Intopia Hub (the &quot;Hub&quot;). By registering a team or using the Hub, you
-        agree to be bound by these Terms. If you do not agree, do not use the Hub.
-      </p>
-    ),
-  },
-  {
-    heading: "Nature of the service",
+    heading: "Nature of the Service & Neutral Venue",
     body: (
       <>
         <p>
-          The Hub is an <strong>educational simulation tool</strong>. It provides marketplace listings, structured negotiation forms, market research sharing and
-          digital contract records between teams participating in the Intopia business simulation.
+          Intopia Hub operates strictly as an independent, third-party software platform designed to provide a digital clearinghouse, contract management
+          infrastructure, and communication interface for the ADM 4711 Intopia simulation.
         </p>
         <p>
-          The Hub is strictly a communication and contract record platform. Production, sales office, capital transfer and other internal simulation mechanics are
-          performed in the simulation itself, not in the Hub.
+          The Platform functions solely as a neutral digital venue. We are not a party to, nor are we responsible for, any agreements, contracts, or negotiations
+          formed between users. The Administrator undertakes no obligation to verify the accuracy of user listings or the intent of counterparties. Intopia Hub
+          shall not be held liable for defaulted contracts, unfulfilled obligations, lost simulation capital, or any negative impacts on your academic standing
+          resulting from actions taken or omitted on this platform.
         </p>
       </>
     ),
   },
   {
-    heading: "Simulated agreements — no financial liability",
+    heading: "Virtual Currency",
+    body: (
+      <p>
+        The Platform assesses a designated &quot;Clearing &amp; Protection Fee&quot; on transactions facilitated through its architecture. All fees, funds, and
+        transactional values processed on Intopia Hub are <strong>strictly limited to simulated, in-game virtual currency</strong> associated with the academic
+        simulation. At no point does Intopia Hub process, handle, or facilitate the exchange of real-world fiat currency.
+      </p>
+    ),
+  },
+  {
+    heading: "Intellectual Property & Copyright",
     body: (
       <>
         <p>
-          <strong>All agreements, contracts, prices, loans, licenses and payments recorded on the Hub are simulated.</strong> They do not create legally
-          enforceable obligations, do not involve real currency, and give rise to <strong>no real-world financial liability</strong> for any participant, team,
-          institution or the operator.
+          The entirety of the Intopia Hub platform, including its source code, algorithms, user interface, and architectural design, constitutes an original
+          computer program and literary work under the <em>Copyright Act of Canada</em> (R.S.C., 1985, c. C-42). <strong>Alexander Hnatovsky</strong> is the sole
+          author and absolute owner.
         </p>
         <p>
-          A &quot;finalized&quot; contract on the Hub represents a commitment within the simulation only and is not a contract within the meaning of the laws of
-          Ontario or Canada.
+          You are strictly prohibited from copying, scraping, reverse-engineering, decompiling, or creating derivative works based upon any component of the
+          Platform. No portion of this software may be utilized in any other project without the prior, explicit, and written consent of the Author.
         </p>
       </>
     ),
   },
   {
-    heading: "Eligibility and accounts",
-    body: (
-      <ul>
-        <li>Teams must be registered participants of an authorized Intopia simulation.</li>
-        <li>You are responsible for keeping your team PIN confidential and for all activity under your team.</li>
-        <li>Teams whose consolidated simulated equity falls below zero are automatically locked out (bankruptcy).</li>
-      </ul>
-    ),
-  },
-  {
-    heading: "Acceptable use",
-    body: (
-      <>
-        <p>To protect participants, free-text chat is disabled and all negotiation occurs through standardized forms. You agree not to:</p>
-        <ul>
-          <li>Misrepresent your team, inventory or capacity in a way that breaches the simulation rules.</li>
-          <li>Harass, threaten or discriminate against other participants through any linked channel.</li>
-          <li>Attempt to access another team&apos;s account or interfere with the Hub&apos;s operation.</li>
-          <li>Use the Hub for any real-world commercial, financial or unlawful purpose.</li>
-        </ul>
-      </>
-    ),
-  },
-  {
-    heading: "Moderation and administrator powers",
+    heading: "User Content Licensing",
     body: (
       <p>
-        Simulation administrators may, at their discretion and without notice, suspend or remove a team&apos;s access, and may override, approve or delete any
-        contract record to preserve the fairness and integrity of the simulation.
+        By uploading documents, market research, or digital content through the Platform&apos;s chat or listing features, you retain all original ownership
+        rights to your content. However, you grant the Platform a temporary, royalty-free license to host, store, and display said content exclusively for the
+        purpose of facilitating your communications with counterparties.
       </p>
     ),
   },
   {
-    heading: "Ratings",
+    heading: "Moderation & Access",
     body: (
       <p>
-        Post-trade ratings reflect participants&apos; opinions of simulated conduct. Ratings must be honest and relate only to sportsmanship within the
-        simulation. Administrators may remove ratings that are abusive or manipulative.
+        Utilization of Intopia Hub is a revocable privilege. The Administrator retains the absolute, unfettered discretion to suspend, restrict, or permanently
+        terminate any user&apos;s or team&apos;s access to the Platform at any time, for any reason, without prior notice.
       </p>
     ),
   },
   {
-    heading: "Disclaimer and limitation of liability",
+    heading: "Disclaimer of Warranties",
     body: (
-      <p>
-        The Hub is provided &quot;as is&quot; and &quot;as available&quot;. To the maximum extent permitted by applicable law, the operator disclaims all warranties
-        and shall not be liable for any indirect, incidental or consequential damages, including any academic outcome, arising from use of the Hub. Nothing in
-        these Terms limits rights that cannot be limited under the <strong>Consumer Protection Act, 2002</strong> (Ontario).
+      <p className="uppercase">
+        The Platform is provided on an &quot;as is&quot; and &quot;as available&quot; basis. The Administrator disclaims all warranties, express or implied,
+        including implied warranties of merchantability and error-free operation. You expressly agree that your use of the Platform is at your sole risk.
       </p>
     ),
   },
   {
-    heading: "Privacy",
-    body: <p>Use of the Hub is also governed by our Privacy Policy, which describes how participant information is collected and protected.</p>,
-  },
-  {
-    heading: "Governing law and jurisdiction",
+    heading: "Governing Law & Jurisdiction",
     body: (
       <p>
-        These Terms are governed by the laws of the <strong>Province of Ontario</strong> and the federal laws of Canada applicable therein. Any dispute shall be
-        subject to the exclusive jurisdiction of the courts located in Ontario.
+        This agreement, and any dispute arising out of your use of the Platform, shall be governed by and construed exclusively in accordance with the laws of
+        the <strong>Province of Ontario</strong> and the federal laws of Canada applicable therein.
       </p>
     ),
-  },
-  {
-    heading: "Changes",
-    body: <p>We may update these Terms from time to time. Continued use of the Hub after changes are posted constitutes acceptance of the revised Terms.</p>,
   },
 ]
 
 export default function TermsPage() {
   return (
     <LegalPage
-      title="Terms of Service"
-      effective="October 1, 2026"
+      title="Terms of Service & End User License Agreement"
+      effective="October 14, 2026"
       intro={
         <>
-          <strong>Summary:</strong> Intopia Hub is a learning tool. Every trade, loan and contract on it is <strong>simulated</strong> and carries{" "}
-          <strong>no real-world legal or financial liability</strong>. These Terms are governed by the laws of Ontario, Canada.
+          By accessing, registering for, or utilizing the Intopia Hub platform (&quot;the Platform&quot;), you acknowledge that you have read, understood, and
+          agree to be bound unconditionally by the terms set forth in this document.
         </>
       }
       sections={sections}

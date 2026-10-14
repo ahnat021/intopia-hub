@@ -3,98 +3,78 @@ import { LegalPage, type LegalSection } from "@/components/legal/legal-page"
 
 export const metadata: Metadata = {
   title: "Privacy Policy — Intopia Hub",
-  description: "How Intopia Hub collects, uses and protects participant information under Ontario and Canadian privacy law.",
+  description: "How Intopia Hub collects, protects, and retains participant data. Governed by the laws of Ontario, Canada.",
 }
 
 const sections: LegalSection[] = [
   {
-    heading: "Who we are",
-    body: (
-      <p>
-        Intopia Hub (the &quot;Hub&quot;, &quot;we&quot;, &quot;us&quot;) is an educational B2B communication and contract platform operated in support of the
-        Intopia business simulation. The Hub is administered from the Province of Ontario, Canada. This Privacy Policy explains how we collect, use,
-        disclose and safeguard personal information in accordance with the <strong>Personal Information Protection and Electronic Documents Act</strong>{" "}
-        (PIPEDA) and, where an Ontario public institution administers the simulation, the <strong>Freedom of Information and Protection of Privacy Act</strong>{" "}
-        (FIPPA).
-      </p>
-    ),
-  },
-  {
-    heading: "Information we collect",
+    heading: "Data Collection",
     body: (
       <>
-        <p>We collect only what is necessary to run the simulation marketplace:</p>
+        <p>To facilitate the marketplace and communication features of the Platform, we collect the following information:</p>
         <ul>
-          <li><strong>Team identifiers</strong> — team number, simulated company name and operating area.</li>
-          <li><strong>Contact details you choose to share</strong> — a WhatsApp number and email address used for coordination between teams.</li>
-          <li><strong>Simulation activity</strong> — listings, structured proposals, market research offers, contract terms, signatures and partner ratings.</li>
-          <li><strong>Technical data</strong> — basic device and session information required to keep you signed in and to secure the service.</li>
+          <li>
+            <strong>Account Data:</strong> Names and official simulation email addresses (<code>ottXX@intopsim.com</code>).
+          </li>
+          <li>
+            <strong>Contact Data:</strong> WhatsApp numbers or other provided communication identifiers.
+          </li>
+          <li>
+            <strong>Usage Data:</strong> Proprietary chat transcripts, uploaded attachments, and transaction listings.
+          </li>
         </ul>
-        <p>We do not collect payment card details, government identifiers or real-world banking information. All monetary values in the Hub are simulated.</p>
       </>
     ),
   },
   {
-    heading: "How we use information",
+    heading: "Strict Confidentiality & Academic Separation",
     body: (
-      <ul>
-        <li>To operate the marketplace, structured negotiations and digital contract workflow.</li>
-        <li>To display public sportsmanship ratings and leaderboards derived from simulated trades.</li>
-        <li>To allow simulation administrators to moderate conduct, resolve disputes and enforce the Terms of Service.</li>
-        <li>To maintain the security and integrity of the platform.</li>
-      </ul>
+      <>
+        <p>Intopia Hub operates entirely independently of the University of Ottawa administration and teaching faculty.</p>
+        <ul>
+          <li>We guarantee strict confidentiality regarding your platform activity.</li>
+          <li>
+            No negotiations, chat logs, contract drafts, or personal data will be voluntarily disclosed, surrendered, or transmitted to the course professor,
+            university administration, or competing student cohorts.
+          </li>
+        </ul>
+      </>
     ),
   },
   {
-    heading: "Consent",
+    heading: "Third-Party Sharing",
     body: (
       <p>
-        By registering a team and using the Hub you consent to the collection and use of your information for the purposes described above. You may withdraw
-        consent at any time by contacting the simulation administrator; doing so may prevent your team from participating in marketplace activity.
+        We <strong>do not sell, rent, or monetize</strong> your personal data. Data is exclusively processed within the application&apos;s secure database
+        infrastructure (Supabase) solely to enable real-time chat, authentication, and marketplace functionality.
       </p>
     ),
   },
   {
-    heading: "Disclosure",
+    heading: "Data Archival & Retention",
     body: (
-      <p>
-        Contact details are shared only with teams you actively negotiate with. Ratings, team names and completed-deal counts are visible to all participants.
-        We do not sell or rent personal information. We may disclose information if required by law, including a valid order from a court or tribunal of
-        competent jurisdiction in Ontario.
-      </p>
+      <>
+        <p>
+          Upon the conclusion of the relevant academic semester, all active personal data directly identifying users (including names, contact numbers, and
+          profile identifiers) will be systematically scrubbed from the live production environment.
+        </p>
+        <p>
+          However, you explicitly acknowledge and grant the Administrator the right to migrate and permanently store anonymized platform usage metrics,
+          structural data, and chat histories within a secure, private archival database. This retention is executed exclusively for the Administrator&apos;s
+          personal portfolio development, historical preservation, and future software architecture reference, and shall remain strictly inaccessible to the
+          public.
+        </p>
+      </>
     ),
   },
   {
-    heading: "How we protect your data",
+    heading: "Governing Law & Jurisdiction",
     body: (
       <p>
-        <strong>Your data is protected.</strong> We apply administrative, technical and physical safeguards appropriate to the sensitivity of the information,
-        including encrypted transport (TLS), role-based administrator access and data minimization. Free-text messaging is intentionally disabled in favour of
-        structured forms to reduce the collection of unnecessary personal information.
+        This privacy policy, and any dispute arising from our data practices, shall be governed by and construed exclusively in accordance with the laws of the{" "}
+        <strong>Province of Ontario</strong> and the federal laws of Canada applicable therein.
       </p>
     ),
-  },
-  {
-    heading: "Retention",
-    body: (
-      <p>
-        Simulation records are retained only for the duration of the course or competition and a reasonable period afterward for academic review, after which
-        they are securely deleted or anonymized.
-      </p>
-    ),
-  },
-  {
-    heading: "Your rights",
-    body: (
-      <p>
-        You may request access to, or correction of, the personal information we hold about you. If you are not satisfied with our response, you may contact the{" "}
-        <strong>Office of the Privacy Commissioner of Canada</strong> or, where FIPPA applies, the <strong>Information and Privacy Commissioner of Ontario</strong>.
-      </p>
-    ),
-  },
-  {
-    heading: "Contact",
-    body: <p>Questions about this policy may be directed to the simulation administrator at privacy@intopia.trade.</p>,
   },
 ]
 
@@ -102,13 +82,8 @@ export default function PrivacyPage() {
   return (
     <LegalPage
       title="Privacy Policy"
-      effective="October 1, 2026"
-      intro={
-        <>
-          <strong>Summary:</strong> Intopia Hub collects the minimum information needed to run a simulated B2B marketplace. Your data is protected, never sold,
-          and the platform facilitates <strong>simulated agreements only</strong> — no real-world financial liability arises from activity on the Hub.
-        </>
-      }
+      effective="October 14, 2026"
+      intro={<>By accessing or utilizing the Intopia Hub platform, you consent to the data collection and retention practices outlined in this Privacy Policy.</>}
       sections={sections}
     />
   )
