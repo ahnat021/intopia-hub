@@ -1,6 +1,9 @@
 "use server"
 
+import { after } from "next/server"
+import { headers } from "next/headers"
 import { db, isSupabaseConfigured } from "@/lib/supabaseClient"
+import { sendAdminKycNotice } from "@/lib/server/email"
 import { clearSession, setSession } from "@/lib/server/session"
 import {
   EMAIL_RE,
@@ -13,7 +16,7 @@ import {
   reportIntrusion,
   verifySecret,
 } from "@/lib/server/security"
-import { seatEmail } from "@/lib/domain"
+import { isProfessor, professorName, seatEmail } from "@/lib/domain"
 import { findSeat, resolveSeatId } from "@/lib/server/seats"
 import type { ActionResult } from "@/lib/hub-types"
 
@@ -67,6 +70,23 @@ export async function registerTeam(input: RegisterInput): Promise<ActionResult> 
     return { ok: false, error: error.code === "23505" ? "This email is already linked to a team." : "Registration failed. Try again." }
   }
   await setSession({ role: "team", teamId: team.id })
+
+  const requestHeaders = await headers()
+  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host")
+  const proto = requestHeaders.get("x-forwarded-proto") ?? "https"
+  const notice = {
+    teamName: isProfessor(team.id) ? professorName(team.id) : `Team ${team.number}`,
+    company,
+    region: input.region,
+    email,
+    whatsapp,
+    hubUrl: host ? `${proto}://${host}/` : "https://intopiahub.com/",
+  }
+  after(() =>
+    sendAdminKycNotice(notice).catch((e) =>
+      console.error("[intopia:email] admin KYC notice failed:", e instanceof Error ? e.message : e),
+    ),
+  )
   return { ok: true, data: undefined }
 }
 

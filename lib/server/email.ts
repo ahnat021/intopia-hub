@@ -9,6 +9,49 @@ const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt
 
 const FROM_ADDRESS = "Intopia Hub <noreply@intopiahub.com>"
 
+export const ADMIN_NOTIFY_EMAIL = "ahnat021@uottawa.ca"
+
+export interface KycNotice {
+  teamName: string
+  company: string
+  region: string
+  email: string
+  whatsapp: string
+  hubUrl: string
+}
+
+export async function sendAdminKycNotice(notice: KycNotice) {
+  if (!process.env.RESEND_API_KEY) throw new Error("RESEND_API_KEY is not set in this environment")
+  const rows: [string, string][] = [
+    ["Team", notice.teamName],
+    ["Company", notice.company],
+    ["Region", notice.region],
+    ["Team email", notice.email],
+    ["WhatsApp", notice.whatsapp],
+  ]
+  const result = await client().emails.send({
+    from: FROM_ADDRESS,
+    to: ADMIN_NOTIFY_EMAIL,
+    subject: `KYC review needed: ${notice.teamName} (${notice.company})`,
+    text: `${notice.teamName} verified their email and is waiting for KYC approval.\n\n${rows
+      .map(([k, v]) => `${k}: ${v}`)
+      .join("\n")}\n\nReview it in the admin console: ${notice.hubUrl}`,
+    html: `<div style="font-family:system-ui,sans-serif;max-width:480px;margin:auto;padding:24px">
+  <h2 style="margin:0 0 8px">KYC review needed</h2>
+  <p style="color:#475569">${escapeHtml(notice.teamName)} verified their email and is waiting for your approval.</p>
+  <table style="border-collapse:collapse;margin:16px 0;font-size:14px">${rows
+    .map(
+      ([k, v]) =>
+        `<tr><td style="padding:4px 16px 4px 0;color:#64748b">${escapeHtml(k)}</td><td style="padding:4px 0;font-weight:600">${escapeHtml(v)}</td></tr>`,
+    )
+    .join("")}</table>
+  <a href="${escapeHtml(notice.hubUrl)}" style="display:inline-block;padding:12px 16px;border-radius:8px;background:#1e3a5f;color:#ffffff;font-weight:600;text-decoration:none">Open the admin console</a>
+</div>`,
+  })
+  if (result.error) throw new Error(`Resend: ${result.error.message}`)
+  console.log("[intopia:email] admin KYC notice sent", { id: result.data?.id })
+}
+
 export async function sendVerificationCode(to: string, code: string, purpose: OtpPurpose, notMeUrl?: string) {
   console.log("[intopia:email] send requested", { purpose, hasResendKey: !!process.env.RESEND_API_KEY, from: FROM_ADDRESS })
   if (!process.env.RESEND_API_KEY) throw new Error("RESEND_API_KEY is not set in this environment")
