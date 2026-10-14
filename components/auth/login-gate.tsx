@@ -305,6 +305,15 @@ export function LoginGate() {
       <Image src="/images/globe-network.png" alt="" fill priority sizes="100vw" className="pointer-events-none object-cover opacity-20" />
       <div aria-hidden className="pointer-events-none absolute inset-0 bg-background/75" />
 
+      <nav aria-label="Legal" className="absolute bottom-3 left-4 z-10 flex sm:top-4 sm:bottom-auto items-center gap-4 text-xs font-medium text-muted-foreground">
+        <Link href="/terms" className="hover:text-foreground hover:underline">
+          Terms of Service
+        </Link>
+        <Link href="/privacy" className="hover:text-foreground hover:underline">
+          Privacy Policy
+        </Link>
+      </nav>
+
       <nav aria-label="Preferences" className="absolute top-4 right-4 z-10 flex items-center gap-2">
         <Button variant="outline" size="sm" onClick={toggle} aria-label={t("lang.switch")}>
           <Languages aria-hidden />
