@@ -39,6 +39,31 @@ const missingAssetColumn = (error: InsertResult["error"]) => !!error && /asset/i
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
+let strategyUpgrade: Promise<void> | null = null
+
+/** Saves a team's declared strategy, adding the `strategy` column on first use if it doesn't exist yet. */
+export async function updateTeamStrategy(teamId: string, strategy: string | null): Promise<InsertResult> {
+  const update = () => db().from("teams").update({ strategy }).eq("id", teamId) as unknown as Promise<InsertResult>
+  const missing = (e: InsertResult["error"]) => !!e && /strategy/i.test(e.message)
+  let result = await update()
+  if (!missing(result.error)) return result
+  try {
+    strategyUpgrade ??= runDdl([`alter table public.teams add column if not exists "strategy" text`, `notify pgrst, 'reload schema'`]).catch((e) => {
+      strategyUpgrade = null
+      throw e
+    })
+    await strategyUpgrade
+  } catch (e) {
+    return { error: { message: `Could not enable strategies: ${e instanceof Error ? e.message : String(e)}` } }
+  }
+  for (const delay of [300, 700, 1500, 3000]) {
+    await wait(delay)
+    result = await update()
+    if (!missing(result.error)) return result
+  }
+  return result
+}
+
 /** Inserts a row that may carry `asset`, upgrading the schema on first use if the column doesn't exist yet. */
 export async function insertWithAsset(table: "listings" | "contracts", row: object): Promise<InsertResult> {
   const insert = () => db().from(table).insert(row) as unknown as Promise<InsertResult>

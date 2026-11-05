@@ -44,7 +44,20 @@ export interface Team {
   security_flag_count?: number | null
   last_intrusion_reported_at?: string | null
   login_locked_until?: number | null
+  /** Publicly declared business strategy. */
+  strategy?: TeamStrategy | null
 }
+
+export const TEAM_STRATEGIES = {
+  X_PRODUCER: { label: "X Producer", hint: "Manufactures X (batteries)" },
+  Y_PRODUCER: { label: "Y Producer", hint: "Manufactures Y (smartphones)" },
+  INTEGRATED: { label: "Integrated", hint: "Makes X and assembles Y in-house" },
+  WHOLESALER: { label: "Wholesaler", hint: "Buys and resells finished goods" },
+  RND: { label: "R&D", hint: "Develops and licenses patents" },
+  SERVICES: { label: "Services & Finance", hint: "Loans, market research, logistics" },
+} as const
+export type TeamStrategy = keyof typeof TEAM_STRATEGIES
+export const isTeamStrategy = (v: unknown): v is TeamStrategy => typeof v === "string" && v in TEAM_STRATEGIES
 
 export interface Listing {
   id: string

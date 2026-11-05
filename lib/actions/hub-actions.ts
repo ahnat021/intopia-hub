@@ -3,7 +3,7 @@
 import { db, isSupabaseConfigured } from "@/lib/supabaseClient"
 import { getSession } from "@/lib/server/session"
 import { newId, posterAlias } from "@/lib/server/security"
-import { clearingFee, isValidPeriodSetting, promoActive } from "@/lib/constants"
+import { isValidPeriodSetting } from "@/lib/constants"
 import { MAX_FACTORIES_PER_AREA, PRODUCT_INFO, formatCompactUSD, formatUnits, productCode } from "@/lib/intopia-rules"
 import { insertWithAsset } from "@/lib/server/schema-upgrades"
 import {
@@ -394,7 +394,7 @@ export async function draftContract(draft: ContractDraft, parentId?: string): Pr
   if (factory) Object.assign(contract, { asset: "FACTORY", grade: 0, delivery: null })
   const insertContract = (row: Contract) => (factory ? insertWithAsset("contracts", row) : db().from("contracts").insert(row))
   const promoCode = (team as { promo_code_used?: string | null }).promo_code_used
-  const withFee: Contract = { ...contract, clearing_fee: clearingFee(totalValue, promoCode), fee_waived: promoActive(promoCode) }
+    const withFee: Contract = { ...contract, clearing_fee: 0, fee_waived: true }
   let { error } = await insertContract(withFee)
   // Fall back if migration 002 hasn't added the fee columns yet.
   if (error && /clearing_fee|fee_waived/.test(error.message)) ({ error } = await insertContract(contract))

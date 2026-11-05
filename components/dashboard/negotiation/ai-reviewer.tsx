@@ -81,7 +81,6 @@ export function AiReviewer({ contract }: { contract: Contract }) {
   const { aiReviews, recordAiReview } = useHub()
   const review = aiReviews[contract.id]
   const [running, setRunning] = useState(false)
-  const fee = Math.round(contract.totalValue * PLATFORM_FEE_RATE)
 
   const run = () => {
     setRunning(true)
@@ -89,7 +88,7 @@ export function AiReviewer({ contract }: { contract: Contract }) {
       const result = analyzeContract(contract)
       recordAiReview(contract.id, result)
       setRunning(false)
-      toast.success(`Fairness Score ${result.score}/100`, { description: `${formatUSD(result.feeUSD)} Platform Infrastructure Fee deducted.` })
+      toast.success(`Fairness Score ${result.score}/100`)
     }, 1600)
   }
 
@@ -100,9 +99,7 @@ export function AiReviewer({ contract }: { contract: Contract }) {
           {running ? <Loader2 className="animate-spin" aria-hidden /> : <Sparkles aria-hidden />}
           {running ? "Analyzing clauses..." : "AI Contract Review"}
         </Button>
-        <p className="text-center text-[11px] text-muted-foreground">
-          Deducts a 1% Platform Infrastructure Fee ({formatUSD(fee)})
-        </p>
+        <p className="text-center text-[11px] text-muted-foreground">Free to use</p>
       </div>
     )
   }
@@ -136,9 +133,6 @@ export function AiReviewer({ contract }: { contract: Contract }) {
           </li>
         ))}
       </ul>
-      <p className="border-t border-border pt-2 text-[11px] text-muted-foreground">
-        Platform Infrastructure Fee charged: <span className="font-mono text-foreground">{formatUSD(review.feeUSD)}</span> (1%)
-      </p>
     </section>
   )
 }

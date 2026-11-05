@@ -28,7 +28,8 @@ const sections: LegalSection[] = [
     heading: "Virtual Currency",
     body: (
       <p>
-        The Platform assesses a designated &quot;Clearing &amp; Protection Fee&quot; on transactions facilitated through its architecture. All fees, funds, and
+        The Platform does not charge fees. A suggested platform contribution may be displayed on transactions; it is entirely voluntary and never affects a
+        team&apos;s access. All contributions, funds, and
         transactional values processed on Intopia Hub are <strong>strictly limited to simulated, in-game virtual currency</strong> associated with the academic
         simulation. At no point does Intopia Hub process, handle, or facilitate the exchange of real-world fiat currency.
       </p>
@@ -65,7 +66,8 @@ const sections: LegalSection[] = [
     body: (
       <p>
         Utilization of Intopia Hub is a revocable privilege. The Administrator retains the absolute, unfettered discretion to suspend, restrict, or permanently
-        terminate any user&apos;s or team&apos;s access to the Platform at any time, for any reason, without prior notice.
+        terminate any user&apos;s or team&apos;s access to the Platform for misconduct. Access is never restricted for not making a platform contribution or
+        donation.
       </p>
     ),
   },
@@ -112,7 +114,8 @@ const sectionsFr: LegalSection[] = [
     heading: "Monnaie virtuelle",
     body: (
       <p>
-        La Plateforme perçoit des « frais de compensation et de protection » sur les transactions facilitées par son architecture. Tous les frais, fonds et
+        La Plateforme ne perçoit aucuns frais. Une contribution suggérée peut être affichée sur les transactions; elle est entièrement volontaire et
+        n&apos;a jamais d&apos;incidence sur l&apos;accès d&apos;une équipe. Toutes les contributions, fonds et
         valeurs transactionnelles traités sur Intopia Hub sont <strong>strictement limités à une monnaie virtuelle simulée, propre au jeu</strong> et associée à
         la simulation pédagogique. Intopia Hub ne traite, ne manipule et ne facilite à aucun moment l&apos;échange de monnaie réelle.
       </p>
@@ -150,8 +153,8 @@ const sectionsFr: LegalSection[] = [
     body: (
       <p>
         L&apos;utilisation d&apos;Intopia Hub est un privilège révocable. L&apos;Administrateur conserve l&apos;entière et absolue discrétion de suspendre, de
-        restreindre ou de résilier définitivement l&apos;accès de tout utilisateur ou de toute équipe à la Plateforme, en tout temps, pour quelque raison que
-        ce soit, sans préavis.
+        restreindre ou de résilier définitivement l&apos;accès de tout utilisateur ou de toute équipe à la Plateforme en cas d&apos;inconduite. L&apos;accès
+        n&apos;est jamais restreint faute de contribution ou de don à la plateforme.
       </p>
     ),
   },
