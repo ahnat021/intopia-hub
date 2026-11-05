@@ -306,7 +306,7 @@ export const PROFESSOR_NAME = "Professor Tim"
  * person, so no team roster is required.
  */
 export const PROFESSORS: { id: string; number: number; name: string; email: string | null }[] = [
-  { id: PROFESSOR_TEAM_ID, number: 0, name: PROFESSOR_NAME, email: null },
+  { id: PROFESSOR_TEAM_ID, number: 0, name: PROFESSOR_NAME, email: "tim@intopsim.com" },
   { id: "prof2", number: 99, name: "Professor Milena Parent", email: "milena.parent@telfer.uottawa.ca" },
 ]
 const PROFESSOR_BY_ID = new Map(PROFESSORS.map((p) => [p.id, p]))
