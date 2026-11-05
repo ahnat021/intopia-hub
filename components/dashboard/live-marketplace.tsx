@@ -22,6 +22,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { CounterpartyLabel, useCounterpartyText } from "@/components/hub/counterparty-label"
 import { DeliveryLabel, StatusBadge, TypeLabel } from "./listing-badges"
 import { WithdrawListingButton } from "./withdraw-listing-button"
+import { PostedAgo, useNow } from "./posted-ago"
 
 const PAGE_SIZE = 8
 
@@ -52,6 +53,7 @@ export const LiveMarketplace = memo(function LiveMarketplace({ listings, viewerI
   const debounced = useDebouncedValue(query, 250)
   const { locale } = useI18n()
   const counterpartyText = useCounterpartyText()
+  const now = useNow()
 
   const filtered = useMemo(() => {
     const q = debounced.trim().toLowerCase()
@@ -152,13 +154,14 @@ export const LiveMarketplace = memo(function LiveMarketplace({ listings, viewerI
               <TableHead className="text-right">Quantity</TableHead>
               <TableHead>Region</TableHead>
               <TableHead>Delivery</TableHead>
+              <TableHead>{locale === "fr" ? "Publiée" : "Posted"}</TableHead>
               <TableHead className="pr-5 text-right">Action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {rows.length === 0 ? (
               <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={9} className="py-14">
+                <TableCell colSpan={10} className="py-14">
                   <div className="flex flex-col items-center gap-2 text-center text-muted-foreground">
                     <SearchX className="size-6" aria-hidden />
                     <p className="text-sm">No listings match these filters.</p>
@@ -202,6 +205,7 @@ export const LiveMarketplace = memo(function LiveMarketplace({ listings, viewerI
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-sm">{l.region}</TableCell>
                     <TableCell><DeliveryLabel mode={l.delivery} /></TableCell>
+                    <TableCell><PostedAgo at={Number(l.createdAt)} now={now} locale={locale} /></TableCell>
                     <TableCell className="pr-5 text-right">
                       <div className="flex items-center justify-end gap-1">
                       {mine && !hasContract && l.status !== "CLOSED" && l.status !== "PENDING_SIGNATURE" && <WithdrawListingButton listing={l} />}
