@@ -9,8 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AREA_CODES, AREA_LABEL, DATALOG, PHASE_INFO, SCHEDULE, SCHEDULE_PHASES, activeScheduleEvent, formatToronto, freightCost, officialEmail, type AreaCode } from "@/lib/constants"
 import { formatCompactUSD } from "@/lib/intopia-rules"
 import { useHub } from "@/lib/hub-store"
-import type { Team } from "@/lib/domain"
+import { TEAM_STRATEGIES, type Team } from "@/lib/domain"
 import { VisibilityPill } from "./visibility-pill"
+import { StrategyBadge } from "./strategy-picker"
 
 export function CohortLogbook({ teams, viewerId, onMessage }: { teams: Team[]; viewerId: string; onMessage: (teamId: string) => void }) {
   const [q, setQ] = useState("")
@@ -18,7 +19,7 @@ export function CohortLogbook({ teams, viewerId, onMessage }: { teams: Team[]; v
     const s = q.trim().toLowerCase()
     return [...teams]
       .sort((a, b) => a.number - b.number)
-      .filter((t) => !s || [t.name, t.company, String(t.number), t.team_leader_name, ...(t.team_members ?? []).map((m) => m.name)].some((v) => v?.toLowerCase().includes(s)))
+      .filter((t) => !s || [t.name, t.company, String(t.number), t.team_leader_name, t.strategy ? TEAM_STRATEGIES[t.strategy]?.label : null, ...(t.team_members ?? []).map((m) => m.name)].some((v) => v?.toLowerCase().includes(s)))
   }, [teams, q])
 
   return (
@@ -40,7 +41,10 @@ export function CohortLogbook({ teams, viewerId, onMessage }: { teams: Team[]; v
           return (
             <li key={t.id} className="glass-card flex flex-col gap-3 rounded-lg border border-border p-4">
               <div>
-                <p className="font-mono text-xs text-gold">Team {String(t.number).padStart(2, "0")}</p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-mono text-xs text-gold">Team {String(t.number).padStart(2, "0")}</p>
+                  <StrategyBadge strategy={t.strategy} />
+                </div>
                 <h3 className="font-semibold">{t.company || t.name}</h3>
                 <p className="font-mono text-xs text-muted-foreground">{officialEmail(t.number)}</p>
               </div>

@@ -8,11 +8,12 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { redeemPromo, saveTeamProfile } from "@/lib/actions/clearinghouse-actions"
-import { CLEARING_FEE_LABEL, PROMO_RULE } from "@/lib/constants"
-import { isProfessor, type Team } from "@/lib/domain"
+import { saveStrategy, saveTeamProfile } from "@/lib/actions/clearinghouse-actions"
+import { PLATFORM_CONTRIBUTION_REMINDER } from "@/lib/constants"
+import { isProfessor, type Team, type TeamStrategy } from "@/lib/domain"
+import { StrategyPicker } from "@/components/hub/strategy-picker"
 
-type Step = "waiver" | "promo" | "roster"
+type Step = "waiver" | "roster"
 type Member = { name: string; isLeader: boolean }
 
 interface Props {
@@ -29,15 +30,15 @@ interface Props {
 const RULES = [
   "If a contract is not respected, the Administrator may impose a monetary penalty based on the terms of the contract.",
   "In the absence of a contract provision for penalties, a discretionary penalty may be attributed.",
-  "I have read the game rules: penalties, contracts, the 0.75% Clearing & Protection Fee, and fair-play conduct.",
+  "I have read the game rules: penalties, contracts and fair-play conduct.",
   "If the website has a bug or crash it will be fixed as soon as possible, but Team 25 and the hub administrators are not responsible for resulting losses.",
 ]
 
 export function OnboardingGate({ team, open, mode = "onboard", signed, onSign, onDone, onOpenChange }: Props) {
-  const [step, setStep] = useState<Step>(mode === "edit" ? "roster" : signed ? "promo" : "waiver")
+  const [step, setStep] = useState<Step>(mode === "edit" || signed ? "roster" : "waiver")
   const [checks, setChecks] = useState(RULES.map(() => false))
   const [signatory, setSignatory] = useState("")
-  const [promo, setPromo] = useState("")
+  const [strategy, setStrategy] = useState<TeamStrategy | null>(team.strategy ?? null)
   const [members, setMembers] = useState<Member[]>(team.team_members?.length ? team.team_members : [{ name: "", isLeader: true }])
   const [whatsapp, setWhatsapp] = useState(team.whatsapp ?? "")
   const [contactEmail, setContactEmail] = useState(team.contact_email ?? "")
@@ -48,23 +49,16 @@ export function OnboardingGate({ team, open, mode = "onboard", signed, onSign, o
     setBusy(true)
     const ok = await onSign(signatory)
     setBusy(false)
-    if (ok) setStep("promo")
-  }
-
-  const applyPromo = async () => {
-    setBusy(true)
-    const res = await redeemPromo(promo)
-    setBusy(false)
-    if (!res.ok) return toast.error(res.error)
-    toast.success("100% Trial Fee Waiver activated.")
-    setStep("roster")
+    if (ok) setStep("roster")
   }
 
   const saveRoster = async () => {
     setBusy(true)
     const res = await saveTeamProfile({ members: solo ? [] : members, whatsapp, contactEmail })
+    const strat = !solo && res.ok && strategy !== (team.strategy ?? null) ? await saveStrategy(strategy) : null
     setBusy(false)
     if (!res.ok) return toast.error(res.error)
+    if (strat && !strat.ok) toast.error(strat.error)
     toast.success("Team profile saved.")
     onDone()
   }
@@ -72,22 +66,20 @@ export function OnboardingGate({ team, open, mode = "onboard", signed, onSign, o
   const update = (i: number, patch: Partial<Member>) =>
     setMembers((m) => m.map((x, j) => (j === i ? { ...x, ...patch } : patch.isLeader ? { ...x, isLeader: false } : x)))
 
-  const stepIndex = { waiver: 1, promo: 2, roster: 3 }[step]
+  const stepIndex = { waiver: 1, roster: 2 }[step]
 
   return (
     <Dialog open={open} onOpenChange={mode === "edit" ? onOpenChange : undefined}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl" showCloseButton={mode === "edit"} onInteractOutside={(e) => mode !== "edit" && e.preventDefault()}>
         <DialogHeader>
-          {mode === "onboard" && <p className="font-mono text-xs tracking-widest text-gold">STEP {stepIndex} OF 3</p>}
+          {mode === "onboard" && <p className="font-mono text-xs tracking-widest text-gold">STEP {stepIndex} OF 2</p>}
           <DialogTitle className="font-sans font-semibold text-xl">
-            {step === "waiver" ? "Fair-Play & Hub Waiver" : step === "promo" ? "Trial Phase Promo Code" : mode === "edit" ? "Edit Team Profile" : "Team Roster & Contact Logbook"}
+            {step === "waiver" ? "Fair-Play & Hub Waiver" : mode === "edit" ? "Edit Team Profile" : "Team Roster & Contact Logbook"}
           </DialogTitle>
           <DialogDescription>
             {step === "waiver"
               ? `${team.name} must accept the hub rules before trading.`
-              : step === "promo"
-                ? `Every executed trade carries a small ${CLEARING_FEE_LABEL}.`
-                : solo
+              : solo
                   ? "Tip: if the French/English toggle doesn't translate a page, use Chrome's built-in Translate (right-click › Translate)."
                   : "Add 1 to 8 members and choose exactly one Team Leader. This appears in the public Cohort Logbook."}
           </DialogDescription>
@@ -108,15 +100,6 @@ export function OnboardingGate({ team, open, mode = "onboard", signed, onSign, o
           </div>
         )}
 
-        {step === "promo" && (
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="og-promo">Promo code (optional)</Label>
-              <Input id="og-promo" value={promo} onChange={(e) => setPromo(e.target.value)} placeholder="INTOPIATRIAL" className="font-mono uppercase" />
-            </div>
-            <p className="rounded-md border border-gold/40 bg-gold/10 p-3 text-sm leading-relaxed text-foreground">{PROMO_RULE}</p>
-          </div>
-        )}
 
         {step === "roster" && (
           <div className="flex flex-col gap-4">
@@ -158,6 +141,7 @@ export function OnboardingGate({ team, open, mode = "onboard", signed, onSign, o
               </Button>
             </fieldset>
             )}
+            {!solo && <StrategyPicker value={strategy} onChange={setStrategy} disabled={busy} />}
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="og-wa">Main contact WhatsApp</Label>
@@ -168,6 +152,7 @@ export function OnboardingGate({ team, open, mode = "onboard", signed, onSign, o
                 <Input id="og-email" type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} />
               </div>
             </div>
+            {mode === "onboard" && <p className="rounded-md border border-gold/40 bg-gold/10 p-3 text-sm leading-relaxed text-foreground">{PLATFORM_CONTRIBUTION_REMINDER}</p>}
           </div>
         )}
 
@@ -176,16 +161,6 @@ export function OnboardingGate({ team, open, mode = "onboard", signed, onSign, o
             <Button onClick={sign} disabled={busy || !checks.every(Boolean) || signatory.trim().length < 2}>
               Sign & Accept Intopia Hub Rules & Waiver
             </Button>
-          )}
-          {step === "promo" && (
-            <>
-              <Button variant="ghost" onClick={() => setStep("roster")}>
-                Skip
-              </Button>
-              <Button onClick={applyPromo} disabled={busy || !promo.trim()}>
-                Apply code
-              </Button>
-            </>
           )}
           {step === "roster" && (
             <Button onClick={saveRoster} disabled={busy}>

@@ -5,7 +5,8 @@ import { getSession } from "@/lib/server/session"
 import { newId } from "@/lib/server/security"
 import { PROMO_CODE, PROMO_EXPIRES_AT } from "@/lib/constants"
 import type { ActionResult } from "@/lib/hub-types"
-import { isProfessor, professorName } from "@/lib/domain"
+import { TEAM_STRATEGIES, isProfessor, isTeamStrategy, professorName } from "@/lib/domain"
+import { updateTeamStrategy } from "@/lib/server/schema-upgrades"
 
 const fail = (error: string): ActionResult<never> => ({ ok: false, error })
 const ok = <T,>(data: T): ActionResult<T> => ({ ok: true, data })
@@ -50,6 +51,19 @@ export async function saveTeamProfile(input: TeamProfileInput): Promise<ActionRe
     .update({ team_members: members, team_leader_name: leaderName, whatsapp, contact_email: contactEmail || null })
     .eq("id", teamId)
   return error ? fail("Could not save the team profile. Has migration 002 been run?") : ok(undefined)
+}
+
+export async function saveStrategy(strategy: string | null): Promise<ActionResult> {
+  const teamId = await currentTeamId()
+  if (!teamId) return fail("Sign in as a team first.")
+  if (strategy !== null && !isTeamStrategy(strategy)) return fail("Pick a strategy from the list.")
+  const { error } = await updateTeamStrategy(teamId, strategy)
+  if (error) return fail("Could not save your strategy. Try again.")
+  if (strategy) {
+    const { data } = await db().from("teams").select("name").eq("id", teamId).maybeSingle()
+    await db().from("activity").insert({ id: newId("A"), kind: "announcement", message: `${data?.name ?? "A team"} declared a ${TEAM_STRATEGIES[strategy].label} strategy`, teamId })
+  }
+  return ok(undefined)
 }
 
 export async function redeemPromo(code: string): Promise<ActionResult> {

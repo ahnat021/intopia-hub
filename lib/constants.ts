@@ -46,26 +46,20 @@ export const CHAT_BUCKET = "chat-attachments"
 
 // ── Fees & promo ──────────────────────────────────────────────────────────────
 export const CLEARING_FEE_RATE = 0.0075
-export const CLEARING_FEE_LABEL = "Clearing & Protection Fee (0.75%)"
+export const CLEARING_FEE_LABEL = "Platform contribution (suggested 0.75%)"
 export const PROMO_CODE = "INTOPIATRIAL"
 /** End of Market Test Period 7: Oct 21, 2026 @ 22:00 EDT. */
 export const PROMO_EXPIRES_AT = new Date("2026-10-21T22:00:00-04:00").getTime()
-export const PROMO_RULE =
-  "100% Trial Fee Waiver Active until Market Test Period 7 ends (Oct 21, 2026 @ 22:00 EDT). Standard 0.75% Clearing & Protection Fee applies automatically during the Official Real Game (Nov 5–8, 2026)."
-export const PROMO_ACTIVE_NOTE = "INTOPIATRIAL Market Test Waiver Active until Oct 21 @ 22:00 EDT"
-export const PROMO_EXPIRED_NOTE =
-  "INTOPIATRIAL Promo Expired (Market Test Ended Oct 21) — Standard 0.75% Clearing & Protection Fee Active (0.375% Buyer / 0.375% Seller)"
+export const PLATFORM_CONTRIBUTION_REMINDER =
+  "Friendly reminder: please remember to settle the suggested 0.75% platform contribution on your trades (0.375% buyer / 0.375% seller). Nothing is deducted automatically, and your access to the hub never depends on it."
 
 export const promoWindowOpen = (now = Date.now()) => now <= PROMO_EXPIRES_AT
 
 export const promoActive = (promoCodeUsed: string | null | undefined, now = Date.now()) =>
   promoCodeUsed?.toUpperCase() === PROMO_CODE && promoWindowOpen(now)
 
-export const clearingFeeRate = (promoCodeUsed: string | null | undefined, now = Date.now()) =>
-  promoActive(promoCodeUsed, now) ? 0 : CLEARING_FEE_RATE
-
-export const clearingFee = (contractValue: number, promoCodeUsed: string | null | undefined, now = Date.now()) =>
-  Math.round(clearingFeeRate(promoCodeUsed, now) * (contractValue || 0) * 100) / 100
+/** The platform no longer charges a fee; this is only the suggested voluntary contribution. */
+export const suggestedContribution = (contractValue: number) => Math.round(CLEARING_FEE_RATE * (contractValue || 0) * 100) / 100
 
 // ── Official ADM 4711 A Fall 2026 schedule (America/Toronto) ─────────────────
 export type SchedulePhase = "trial" | "test" | "pregame" | "real"
@@ -112,9 +106,9 @@ export const SCHEDULE_PHASES: SchedulePhase[] = ["trial", "test", "pregame", "re
 
 export const PHASE_INFO: Record<SchedulePhase, { title: string; titleFr: string; note: string }> = {
   trial: { title: "Phase 1 — Structured Trials", titleFr: "Phase 1 — Essais structurés", note: "Completed" },
-  test: { title: "Phase 2 — Market Test Phase", titleFr: "Phase 2 — Tests de marché", note: "INTOPIATRIAL 100% fee waiver active until Oct 21 @ 22:00 · Results next day before 08:00" },
+  test: { title: "Phase 2 — Market Test Phase", titleFr: "Phase 2 — Tests de marché", note: "Results next day before 08:00" },
   pregame: { title: "Pre-Game Milestones", titleFr: "Jalons pré-jeu", note: "Projections, leader briefing and networking" },
-  real: { title: "Phase 3 — Official Real Game (Le Vrai Jeu)", titleFr: "Phase 3 — Le vrai jeu", note: "Standard 0.75% fee active · Results 30 mins after each decision" },
+  real: { title: "Phase 3 — Official Real Game (Le Vrai Jeu)", titleFr: "Phase 3 — Le vrai jeu", note: "Results 30 mins after each decision" },
 }
 
 /**
