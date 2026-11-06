@@ -10,10 +10,11 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import { useDebouncedValue } from "@/hooks/use-debounced-value"
 import { GRADES, OPERATING_AREAS, PRODUCT_INFO, formatUSD, formatUnits } from "@/lib/intopia-rules"
-import { isFactory, isOperator, type Listing, type ListingType } from "@/lib/domain"
+import { isFactory, isOperator, isPatent, type Listing, type ListingType } from "@/lib/domain"
 
 function describeListing(l: Listing) {
   if (isFactory(l)) return `Factory ${l.product}`
+  if (isPatent(l)) return `Patent ${l.product}${l.grade} · ${l.type === "SELL" ? "license offered" : "license wanted"}`
   if (l.type === "BUY" || l.type === "SELL") return `Product ${l.product}`
   return l.title
 }
@@ -175,10 +176,14 @@ export const LiveMarketplace = memo(function LiveMarketplace({ listings, viewerI
                 const label = hasContract ? "View Contract" : mine ? "View Offers" : l.status === "CLOSED" ? "Closed" : "Negotiate"
                 const operator = isOperator(l.teamId)
                 const factory = isFactory(l)
+                const patent = isPatent(l)
+                const priceText = !l.unitPrice
+                  ? patent ? "Fee open to offers · " : ""
+                  : patent ? `Fee ${formatUSD(Number(l.unitPrice))} · ` : `${formatUSD(Number(l.unitPrice))}/${factory ? "factory" : "unit"} · `
                 return (
                   <TableRow key={l.id} className={cn(l.isNew && "animate-row-flash", l.status === "CLOSED" && "opacity-60", operator && "operator-row")}>
                     <TableCell className="pl-5"><StatusBadge status={l.status} /></TableCell>
-                    <TableCell><TypeLabel type={l.type} /></TableCell>
+                    <TableCell><TypeLabel type={l.type} asset={l.asset} /></TableCell>
                     <TableCell className="whitespace-nowrap">
                       {mine ? (
                         <span className="rounded bg-primary/20 px-1.5 py-0.5 text-[11px] font-semibold text-primary">Your listing</span>
@@ -189,7 +194,7 @@ export const LiveMarketplace = memo(function LiveMarketplace({ listings, viewerI
                     <TableCell className="max-w-56">
                       <p className="truncate text-sm font-medium">{describeListing(l)}</p>
                       <p className="truncate text-xs text-muted-foreground">
-                        {l.unitPrice ? `${formatUSD(Number(l.unitPrice))}/${factory ? "factory" : "unit"} · ` : ""}
+                        {priceText}
                         {l.notes}
                       </p>
                     </TableCell>

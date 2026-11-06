@@ -29,7 +29,7 @@ import {
   type Product,
   type Region,
 } from "@/lib/intopia-rules"
-import { factoryLabel, isFactory, type Contract, type ContractKind, type Listing, type Team } from "@/lib/domain"
+import { factoryLabel, isFactory, isPatent, type Contract, type ContractKind, type Listing, type Team } from "@/lib/domain"
 import type { ContractDraft } from "@/lib/hub-store"
 
 const KIND_OPTIONS: { value: ContractKind; label: string }[] = [
@@ -72,7 +72,8 @@ interface Props {
 }
 
 export function ContractForm({ listing, threadId, viewer, counterparty, locked, initial, onSubmit, onCancel }: Props) {
-  const [kind, setKind] = useState<ContractKind>(initial?.kind ?? (listing.type === "RND" ? "PATENT_LICENSE" : "PRODUCT_SALE"))
+  const patentListing = isPatent(listing)
+  const [kind, setKind] = useState<ContractKind>(initial?.kind ?? (listing.type === "RND" || patentListing ? "PATENT_LICENSE" : "PRODUCT_SALE"))
   const [providerId, setProviderId] = useState(() => initial?.providerId ?? defaultProvider(listing, viewer.id, counterparty.id))
   const [product, setProduct] = useState<Product>(initial?.product ?? listing.product)
   const [grade, setGrade] = useState(initial?.grade ?? listing.grade)
@@ -86,7 +87,9 @@ export function ContractForm({ listing, threadId, viewer, counterparty, locked, 
   const [delivery, setDelivery] = useState<DeliveryMode>(initial?.delivery ?? listing.delivery ?? "SURFACE")
   const [region, setRegion] = useState<Region>(initial?.region ?? (listing.region === "Home Office" ? (counterparty.region ?? viewer.region ?? "North America") : listing.region))
   const [source, setSource] = useState<InventorySource>("BEGINNING")
-  const [fee, setFee] = useState(initial?.kind === "PATENT_LICENSE" ? String(initial.totalValue / 1000) : "")
+  const [fee, setFee] = useState(
+    initial?.kind === "PATENT_LICENSE" ? String(initial.totalValue / 1000) : patentListing && listing.unitPrice ? String(listing.unitPrice / 1000) : "",
+  )
   const [principal, setPrincipal] = useState(initial?.kind === "B2B_LOAN" ? String(initial.totalValue / 1000) : "")
   const [rate, setRate] = useState(initial?.kind === "B2B_LOAN" ? String(initial.interestRate) : "6")
   const [terms, setTerms] = useState(

@@ -85,7 +85,7 @@ export const MarketPulse = memo(function MarketPulse({ listings }: { listings: L
       if (l.status === "CLOSED") continue
       if (l.region !== "Home Office") regions.set(l.region, (regions.get(l.region) ?? 0) + 1)
       const stat = stats.find((s) => s.name === `Product ${l.product}`)
-      if (!stat) continue
+      if (!stat || l.asset === "PATENT") continue
       if (l.type === "BUY") stat.buyers.add(l.teamId)
       else if (l.type === "SELL") stat.sellers.add(l.teamId)
     }

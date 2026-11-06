@@ -66,10 +66,10 @@ export function HubDashboard() {
   const metrics = useMemo(() => {
     const active = listings.filter((l) => l.status !== "CLOSED")
     return {
-      openListings: active.filter((l) => l.type === "BUY" || l.type === "SELL").length,
+      openListings: active.filter((l) => (l.type === "BUY" || l.type === "SELL") && l.asset !== "PATENT").length,
       teams: hub.teams.filter((t) => t.kyc === "approved" && !t.banned && !isBankrupt(t)).length,
       partnerships: active.filter((l) => l.type === "OTHER" || l.type === "PARTNERSHIP").length,
-      rnd: active.filter((l) => l.type === "RND").length,
+      rnd: active.filter((l) => l.type === "RND" || l.asset === "PATENT").length,
     }
   }, [listings, hub.teams])
 

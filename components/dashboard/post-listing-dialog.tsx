@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, type FormEvent } from "react"
-import { Factory, Info, Package, Plus } from "lucide-react"
+import { ArrowDownLeft, ArrowUpRight, Factory, FlaskConical, Info, Package, Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -67,18 +67,22 @@ export function PostListingDialog({ teamId, locked, onPost }: { teamId: string; 
 
   const isTrade = type === "BUY" || type === "SELL"
   const factory = isTrade && asset === "FACTORY"
-  const productTrade = isTrade && !factory
-  const homeOfficeAllowed = type === "RND"
+  const patent = isTrade && asset === "PATENT"
+  const productTrade = isTrade && !factory && !patent
+  const homeOfficeAllowed = type === "RND" || patent
   const factoryCount = Number(quantity)
   const factoryPriceK = Number(price)
+  const patentFeeK = price.trim() === "" ? null : Number(price)
 
   const errors = {
     quantity: factory
       ? !Number.isInteger(factoryCount) || factoryCount < 1 || factoryCount > MAX_FACTORIES_PER_AREA
         ? `Enter a whole number of factories, 1–${MAX_FACTORIES_PER_AREA} (max ${MAX_FACTORIES_PER_AREA} per area).`
         : null
-      : isTrade ? quantityError(Number(quantity)) : null,
-    price: factory ? (!(factoryPriceK > 0) ? "Enter a price per factory." : null) : isTrade ? priceError(Number(price)) : null,
+      : productTrade ? quantityError(Number(quantity)) : null,
+    price: patent
+      ? patentFeeK !== null && !(patentFeeK > 0) ? "Enter a fee above $0K, or leave it blank for open offers." : null
+      : factory ? (!(factoryPriceK > 0) ? "Enter a price per factory." : null) : isTrade ? priceError(Number(price)) : null,
     title: !isTrade && title.trim().length < 4 ? "Give the opportunity a short title." : null,
     region: region === "Home Office" && !homeOfficeAllowed ? `The Home Office (${HOME_OFFICE.country}) handles ${HOME_OFFICE.allowed} — no manufacturing or sales.` : null,
     notes: notes.trim().length > 140 ? "Keep notes under 140 characters." : null,
@@ -97,7 +101,12 @@ export function PostListingDialog({ teamId, locked, onPost }: { teamId: string; 
 
   const changeType = (v: ListingType) => {
     setType(v)
-    if (v !== "RND" && region === "Home Office") setRegion("North America")
+    if (v !== "RND" && !(asset === "PATENT" && (v === "BUY" || v === "SELL")) && region === "Home Office") setRegion("North America")
+  }
+
+  const changeAsset = (v: ListingAsset) => {
+    setAsset(v); setQuantity(""); setPrice(""); setConfirmedWarnings("")
+    if (v !== "PATENT" && region === "Home Office") setRegion("North America")
   }
 
   const submit = (e: FormEvent) => {
@@ -110,7 +119,21 @@ export function PostListingDialog({ teamId, locked, onPost }: { teamId: string; 
       return
     }
     onPost(
-      factory
+      patent
+        ? {
+            type,
+            asset: "PATENT",
+            teamId,
+            product,
+            grade,
+            title: `${product}${grade} patent · ${type === "SELL" ? "License offered" : "License wanted"}`,
+            quantity: null,
+            unitPrice: patentFeeK === null ? null : Math.round(patentFeeK * 1000),
+            region,
+            delivery: null,
+            notes: notes.trim() || (patentFeeK === null ? "Open to fee proposals" : "Fee negotiable"),
+          }
+        : factory
         ? {
             type,
             asset: "FACTORY",
@@ -173,23 +196,54 @@ export function PostListingDialog({ teamId, locked, onPost }: { teamId: string; 
             {isTrade && (
               <fieldset className="col-span-2 flex flex-col gap-2">
                 <legend className="mb-2 text-sm font-medium">What are you trading?</legend>
-                <div className="grid grid-cols-2 gap-2" role="radiogroup">
+                <div className="grid grid-cols-3 gap-2" role="radiogroup">
                   {([
                     ["PRODUCT", "Products", "Lots of finished units", Package],
                     ["FACTORY", "Factories", "Whole X or Y plants", Factory],
+                    ["PATENT", "Patents", "Technology licenses", FlaskConical],
                   ] as const).map(([value, label, hint, Icon]) => (
                     <button
                       key={value}
                       type="button"
                       role="radio"
                       aria-checked={asset === value}
-                      onClick={() => { setAsset(value); setQuantity(""); setPrice(""); setConfirmedWarnings("") }}
+                      onClick={() => changeAsset(value)}
                       className={cn(
                         "flex items-start gap-2.5 rounded-lg border p-3 text-left transition-colors",
                         asset === value ? "border-primary bg-primary/10" : "border-border hover:bg-secondary/60",
                       )}
                     >
                       <Icon className={cn("mt-0.5 size-4 shrink-0", asset === value ? "text-primary" : "text-muted-foreground")} aria-hidden />
+                      <span className="flex flex-col">
+                        <span className="text-sm font-medium">{label}</span>
+                        <span className="text-xs text-muted-foreground">{hint}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+            )}
+
+            {patent && (
+              <fieldset className="col-span-2 flex flex-col gap-2">
+                <legend className="mb-2 text-sm font-medium">What do you want to do?</legend>
+                <div className="grid grid-cols-2 gap-2" role="radiogroup">
+                  {([
+                    ["SELL", "Offer a license", "You own the patent and will license it to another team", ArrowUpRight],
+                    ["BUY", "Seek a license", "You want to license another team's patent", ArrowDownLeft],
+                  ] as const).map(([value, label, hint, Icon]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      role="radio"
+                      aria-checked={type === value}
+                      onClick={() => setType(value)}
+                      className={cn(
+                        "flex items-start gap-2.5 rounded-lg border p-3 text-left transition-colors",
+                        type === value ? "border-primary bg-primary/10" : "border-border hover:bg-secondary/60",
+                      )}
+                    >
+                      <Icon className={cn("mt-0.5 size-4 shrink-0", type === value ? "text-primary" : "text-muted-foreground")} aria-hidden />
                       <span className="flex flex-col">
                         <span className="text-sm font-medium">{label}</span>
                         <span className="text-xs text-muted-foreground">{hint}</span>
@@ -226,6 +280,24 @@ export function PostListingDialog({ teamId, locked, onPost }: { teamId: string; 
                     {GRADES.map((g) => <SelectItem key={g} value={String(g)}>Grade {g}</SelectItem>)}
                   </SelectContent>
                 </Select>
+              </div>
+            )}
+
+            {patent && (
+              <div className="col-span-2 flex flex-col gap-2">
+                <Label htmlFor="pl-patent-fee">
+                  {type === "SELL" ? "Asking license fee ($K)" : "Fee you're willing to pay ($K)"}{" "}
+                  <span className="font-normal text-muted-foreground">(optional)</span>
+                </Label>
+                <Input id="pl-patent-fee" type="number" inputMode="decimal" min={1} value={price} onChange={(e) => setPrice(e.target.value)} placeholder="250" />
+                <FieldError>{err("price")}</FieldError>
+                <p className="text-xs text-muted-foreground">
+                  {patentFeeK && patentFeeK > 0 ? (
+                    <>Listed as <span className="font-mono text-foreground">{formatUSD(patentFeeK * 1000)}</span>. The final fee is set in the contract.</>
+                  ) : (
+                    "Leave blank to invite fee proposals."
+                  )}
+                </p>
               </div>
             )}
 
@@ -273,7 +345,7 @@ export function PostListingDialog({ teamId, locked, onPost }: { teamId: string; 
                 <SelectContent>
                   {OPERATING_AREAS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
                   <SelectItem value="Home Office" disabled={!homeOfficeAllowed}>
-                    Home Office ({HOME_OFFICE.country}){homeOfficeAllowed ? "" : " — R&D only"}
+                    Home Office ({HOME_OFFICE.country}){homeOfficeAllowed ? "" : " — R&D / patents only"}
                   </SelectItem>
                 </SelectContent>
               </Select>

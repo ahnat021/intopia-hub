@@ -1,6 +1,6 @@
 import { ArrowDownLeft, ArrowUpRight, FlaskConical, Handshake, Plane, Shapes, Ship, type LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { DeliveryMode, ListingStatus, ListingType } from "@/lib/domain"
+import type { DeliveryMode, ListingAsset, ListingStatus, ListingType } from "@/lib/domain"
 
 const SHORT_TYPE_LABEL: Record<ListingType, string> = {
   BUY: "Buy",
@@ -62,7 +62,15 @@ export function TypeIcon({ type, className }: { type: ListingType; className?: s
   )
 }
 
-export function TypeLabel({ type }: { type: ListingType }) {
+export function TypeLabel({ type, asset }: { type: ListingType; asset?: ListingAsset | null }) {
+  if (asset === "PATENT" && (type === "BUY" || type === "SELL")) {
+    return (
+      <span className="inline-flex items-center gap-2 whitespace-nowrap text-sm">
+        <TypeIcon type="RND" />
+        {type === "SELL" ? "License out" : "License in"}
+      </span>
+    )
+  }
   return (
     <span className="inline-flex items-center gap-2 whitespace-nowrap text-sm">
       <TypeIcon type={type} />
