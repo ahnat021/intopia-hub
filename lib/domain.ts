@@ -11,8 +11,10 @@ export interface TeamMember {
   isLeader: boolean
 }
 /** What a BUY/SELL listing trades: product lots (thousands of units) or whole factories. */
-export type ListingAsset = "PRODUCT" | "FACTORY"
+export type ListingAsset = "PRODUCT" | "FACTORY" | "PATENT"
 export const isFactory = (x: { asset?: ListingAsset | null }) => x.asset === "FACTORY"
+/** Patent listings: SELL = offering a license (poster is licensor), BUY = seeking a license. unitPrice = asking fee in $. */
+export const isPatent = (x: { asset?: ListingAsset | null }) => x.asset === "PATENT"
 export const factoryLabel = (n: number) => `${n} ${n === 1 ? "factory" : "factories"}`
 
 export type ListingStatus = "OPEN" | "NEGOTIATING" | "PENDING_SIGNATURE" | "CLOSED"

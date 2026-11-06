@@ -110,14 +110,20 @@ export function NegotiationSheet({ listing, threadId, viewer, onSelectThread, on
             <SheetHeader className="gap-3 border-b border-border p-5 pr-12">
               <div className="flex flex-wrap items-center gap-2">
                 <StatusBadge status={listing.status} />
-                <TypeLabel type={listing.type} />
+                <TypeLabel type={listing.type} asset={listing.asset} />
                 <span className="font-mono text-[11px] text-muted-foreground">{listing.id}</span>
               </div>
               <SheetTitle className="text-lg">{listing.title}</SheetTitle>
               <SheetDescription className="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <span>{PRODUCT_INFO[listing.product].kind}</span>
                 {listing.quantity && <span className="font-mono">{formatUnits(listing.quantity)} units</span>}
-                {listing.unitPrice && <span className="font-mono">${listing.unitPrice}/unit</span>}
+                {listing.asset === "PATENT" ? (
+                  <span className="font-mono">
+                    {listing.type === "SELL" ? "Licensing out" : "Seeking license"} · {listing.unitPrice ? `fee $${(listing.unitPrice / 1000).toLocaleString()}K` : "fee open"}
+                  </span>
+                ) : (
+                  listing.unitPrice && <span className="font-mono">${listing.unitPrice}/{listing.asset === "FACTORY" ? "factory" : "unit"}</span>
+                )}
                 <span>{listing.region}</span>
                 <DeliveryLabel mode={listing.delivery} />
               </SheetDescription>

@@ -25,7 +25,7 @@ function ensureAssetColumns() {
     ...["listings", "contracts"].flatMap((t) => [
       `alter table public.${t} add column if not exists "asset" text not null default 'PRODUCT'`,
       `alter table public.${t} drop constraint if exists "${t}_asset_check"`,
-      `alter table public.${t} add constraint "${t}_asset_check" check ("asset" in ('PRODUCT', 'FACTORY'))`,
+      `alter table public.${t} add constraint "${t}_asset_check" check ("asset" in ('PRODUCT', 'FACTORY', 'PATENT'))`,
     ]),
     `notify pgrst, 'reload schema'`,
   ]).catch((e) => {
@@ -35,7 +35,8 @@ function ensureAssetColumns() {
   return assetUpgrade
 }
 
-const missingAssetColumn = (error: InsertResult["error"]) => !!error && /asset/i.test(error.message) && error.code !== "23514"
+/** Missing column, or an older check constraint that predates a newer asset kind (e.g. PATENT). */
+const missingAssetColumn = (error: InsertResult["error"]) => !!error && /asset/i.test(error.message)
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
@@ -72,7 +73,7 @@ export async function insertWithAsset(table: "listings" | "contracts", row: obje
   try {
     await ensureAssetColumns()
   } catch (e) {
-    return { error: { message: `Could not enable factory listings: ${e instanceof Error ? e.message : String(e)}` } }
+    return { error: { message: `Could not enable factory/patent listings: ${e instanceof Error ? e.message : String(e)}` } }
   }
   // PostgREST reloads its schema cache asynchronously after the notify.
   for (const delay of [300, 700, 1500, 3000]) {

@@ -302,7 +302,10 @@ export async function postListing(input: NewListingInput): Promise<ActionResult<
   if (!Number.isInteger(input.grade) || input.grade < 0 || input.grade > 20) return fail("Invalid grade.")
   const isTrade = input.type === "BUY" || input.type === "SELL"
   const factory = isTrade && input.asset === "FACTORY"
-  if (factory) {
+  const patent = isTrade && input.asset === "PATENT"
+  if (patent) {
+    if (input.unitPrice != null && !finite(input.unitPrice, 1, 1e12)) return fail("The license fee must be greater than zero.")
+  } else if (factory) {
     if (!Number.isInteger(input.quantity) || input.quantity! < 1 || input.quantity! > MAX_FACTORIES_PER_AREA)
       return fail(`List between 1 and ${MAX_FACTORIES_PER_AREA} factories.`)
     if (!finite(input.unitPrice, 1, 1e12)) return fail("Enter a price per factory.")
@@ -318,17 +321,19 @@ export async function postListing(input: NewListingInput): Promise<ActionResult<
     title: String(input.title).slice(0, 120),
     product: input.product,
     grade: factory ? 0 : input.grade,
-    quantity: isTrade ? input.quantity : null,
-    unitPrice: isTrade ? input.unitPrice : null,
+    quantity: isTrade && !patent ? input.quantity : null,
+    unitPrice: isTrade ? (input.unitPrice ?? null) : null,
     region: input.region,
-    delivery: isTrade && !factory ? input.delivery : null,
+    delivery: isTrade && !factory && !patent ? input.delivery : null,
     notes: String(input.notes ?? "").slice(0, 500),
     createdAt: Date.now(),
-    ...(factory ? { asset: "FACTORY" as const } : {}),
+    ...(factory ? { asset: "FACTORY" as const } : patent ? { asset: "PATENT" as const } : {}),
   }
-  const { error } = factory ? await insertWithAsset("listings", listing) : await db().from("listings").insert(listing)
-  if (error) return fail(factory ? `Could not post the factory listing. ${error.message}` : "Could not post the listing.")
-  const kind: ActivityKind = input.type === "PARTNERSHIP" || input.type === "OTHER" ? "partnership" : input.type === "RND" ? "license" : "listing"
+  const special = factory || patent
+  const { error } = special ? await insertWithAsset("listings", listing) : await db().from("listings").insert(listing)
+  if (error) return fail(special ? `Could not post the ${patent ? "patent" : "factory"} listing. ${error.message}` : "Could not post the listing.")
+  const kind: ActivityKind =
+    input.type === "PARTNERSHIP" || input.type === "OTHER" ? "partnership" : input.type === "RND" || patent ? "license" : "listing"
   await logActivity(kind, listingPostMessage(listing.title), team.id)
   return ok(listing)
 }
